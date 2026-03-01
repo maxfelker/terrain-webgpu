@@ -60,9 +60,7 @@ func goWorldUpdate(_ js.Value, args []js.Value) any {
 	playerZ := args[1].Float()
 	update := globalWorld.Update(playerX, playerZ)
 
-	for _, r := range update.ChunksToAdd {
-		globalHeightmaps[r.Coord] = r.Heightmap
-	}
+	// Clean up heightmap cache for evicted chunks
 	for _, c := range update.ChunksToRemove {
 		delete(globalHeightmaps, c)
 	}

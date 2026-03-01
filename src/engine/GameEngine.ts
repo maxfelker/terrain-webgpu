@@ -39,8 +39,8 @@ export default class GameEngine {
     this.pointerLocked = document.pointerLockElement === canvas
   }
 
-  private lastStreamX = 0
-  private lastStreamZ = 0
+  private lastStreamX = -99999
+  private lastStreamZ = -99999
 
   constructor(device: GPUDevice, context: GPUCanvasContext, format: GPUTextureFormat) {
     this.device = device
@@ -137,7 +137,7 @@ export default class GameEngine {
     if (this.playerState) {
       const dx = this.playerState.x - this.lastStreamX
       const dz = this.playerState.z - this.lastStreamZ
-      if (dx * dx + dz * dz > 256 * 256) {
+      if (dx * dx + dz * dz > 128 * 128) {
         this.lastStreamX = this.playerState.x
         this.lastStreamZ = this.playerState.z
         this.chunkManager?.streamUpdate(this.playerState.x, this.playerState.z)

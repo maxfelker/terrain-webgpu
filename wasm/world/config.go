@@ -3,9 +3,9 @@ package world
 // Constants mirror terra-major World.cs
 const (
 	InitialRenderRadius = 2048.0
-	RenderRadius        = 512.0
-	DistanceThreshold   = 1100.0
-	MaxConcurrentChunks = 3
+	RenderRadius        = 1536.0
+	DistanceThreshold   = 2560.0
+	MaxConcurrentChunks = 64
 )
 
 // ChunkCoord identifies a chunk by grid position.

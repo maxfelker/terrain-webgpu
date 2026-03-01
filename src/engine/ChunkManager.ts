@@ -46,12 +46,17 @@ export default class ChunkManager {
       this.removeChunk(coord.X, coord.Z)
     }
 
-    for (const chunkRef of update.chunksToAdd ?? []) {
-      const { X: cx, Z: cz } = chunkRef.coord
-      if (this.activeChunks.some(c => c.coord.x === cx && c.coord.z === cz)) continue
-      const chunk = await this.generateChunk(cx, cz)
-      this.activeChunks.push(chunk)
-    }
+    const toGenerate = (update.chunksToAdd ?? []).filter(ref => {
+      const { X: cx, Z: cz } = ref.coord
+      return !this.activeChunks.some(c => c.coord.x === cx && c.coord.z === cz)
+    })
+
+    if (toGenerate.length === 0) return
+
+    const newChunks = await Promise.all(
+      toGenerate.map(ref => this.generateChunk(ref.coord.X, ref.coord.Z))
+    )
+    this.activeChunks.push(...newChunks)
   }
 
   private removeChunk(cx: number, cz: number): void {
