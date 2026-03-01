@@ -1,0 +1,4 @@
+node_modules/
+dist/
+public/terrain.wasm
+.DS_Store
