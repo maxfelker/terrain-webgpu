@@ -1,23 +1,20 @@
 services:
-  # Development server with hot reload
   dev:
-    image: node:24-alpine
-    working_dir: /app
+    build:
+      context: .
+      target: dev
+    image: terrain-webgpu:dev
     volumes:
       - .:/app
-      - /app/node_modules
     ports:
       - "5173:5173"
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    environment:
-      - NODE_ENV=development
+    stdin_open: true
+    tty: true
 
-  # Production build served via nginx
-  app:
+  prod:
     build:
       context: .
       target: production
+    image: terrain-webgpu:prod
     ports:
       - "8080:80"
-    profiles:
-      - production

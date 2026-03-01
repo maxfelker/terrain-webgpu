@@ -16,21 +16,10 @@ That's it.
 
 ## Development
 
-### Build the dev image
-
-The dev image mounts your source code and rebuilds on change.
+### Start the dev server
 
 ```bash
-docker build --target dev -t terrain-webgpu:dev .
-```
-
-### Run the dev server
-
-```bash
-docker run --rm -it \
-  -v $(pwd):/app \
-  -p 5173:5173 \
-  terrain-webgpu:dev
+docker compose up dev
 ```
 
 Open your browser at:
@@ -43,18 +32,12 @@ The dev server supports hot module reload — edits to `src/` are reflected imme
 
 ## Production
 
-### Build the production image
+### Build and run the production server
 
 The production image compiles everything — Go WASM, TypeScript, Vite — and serves the static bundle via nginx.
 
 ```bash
-docker build --target production -t terrain-webgpu:prod .
-```
-
-### Run the production server
-
-```bash
-docker run --rm -p 8080:80 terrain-webgpu:prod
+docker compose up prod
 ```
 
 Open your browser at:
@@ -168,5 +151,5 @@ terrain-webgpu/
 
 ## License
 
-MIT
+[GNU General Public License v3.0](LICENSE)
 
