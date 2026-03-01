@@ -30,7 +30,8 @@ declare global {
     chunkSize: number,
     heightScale: number,
   ): Float32Array
-  /** Combined heightmap+normals generation in pure Go — returns flat [hm..., normals...] */
+  /** Combined heightmap+normals+biomeId generation in pure Go.
+   *  Returns flat Float32Array: [hm(res*res)..., normals(res*res*3)..., biomeId(1)] */
   function go_generateChunk(
     configJSON: string,
     chunkX: number,
@@ -39,6 +40,8 @@ declare global {
     chunkSize: number,
     heightScale: number,
   ): Float32Array
+  /** Load a WorldConfig JSON to configure biome placement before chunk generation. */
+  function go_loadWorldConfig(configJSON: string): void
 }
 
 export default class WasmBridge {

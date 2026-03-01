@@ -63,6 +63,10 @@ export default class WasmClient {
     await this.call('initWorld', [JSON.stringify(config)])
   }
 
+  async loadWorldConfig(config: object): Promise<void> {
+    await this.call('loadWorldConfig', [JSON.stringify(config)])
+  }
+
   async generateChunk(
     config: object,
     chunkX: number,
@@ -70,11 +74,11 @@ export default class WasmClient {
     resolution: number,
     chunkSize: number,
     heightScale: number,
-  ): Promise<{ heightmap: Float32Array; normals: Float32Array }> {
+  ): Promise<{ heightmap: Float32Array; normals: Float32Array; biomeId: number }> {
     return this.call(
       'generateChunk',
       [JSON.stringify(config), chunkX, chunkZ, resolution, chunkSize, heightScale],
-    ) as Promise<{ heightmap: Float32Array; normals: Float32Array }>
+    ) as Promise<{ heightmap: Float32Array; normals: Float32Array; biomeId: number }>
   }
 
   async worldUpdate(playerX: number, playerZ: number): Promise<WorldUpdate> {

@@ -37,6 +37,9 @@ function handleCall(event: MessageEvent): void {
     if (method === 'initWorld') {
       go_initWorld(args[0] as string)
       result = null
+    } else if (method === 'loadWorldConfig') {
+      go_loadWorldConfig(args[0] as string)
+      result = null
     } else if (method === 'generateChunk') {
       const [configJSON, cx, cz, resolution, chunkSize, heightScale] =
         args as [string, number, number, number, number, number]
@@ -44,15 +47,17 @@ function handleCall(event: MessageEvent): void {
       // go_generateChunk runs both heightmap generation and normal computation
       // entirely inside Go using pure Go slices — no JS Float32Array is ever
       // passed between two Go WASM functions (which silently produces length 0).
-      // Returns flat Float32Array: [heightmap(res×res)..., normals(res×res×3)...]
+      // Returns flat Float32Array: [heightmap(res×res)..., normals(res×res×3)..., biomeId(1)]
       const combined = go_generateChunk(configJSON, cx, cz, resolution, chunkSize, heightScale)
       if (!combined || !combined.buffer) throw new Error('go_generateChunk returned no data')
 
       const hmLen = resolution * resolution
-      const heightmap = combined.slice(0, hmLen)   // copy, own buffer
-      const normals   = combined.slice(hmLen)       // copy, own buffer
+      const normLen = resolution * resolution * 3
+      const heightmap = combined.slice(0, hmLen)         // copy, own buffer
+      const normals   = combined.slice(hmLen, hmLen + normLen)  // copy, own buffer
+      const biomeId   = Math.round(combined[hmLen + normLen])
 
-      result = { heightmap, normals }
+      result = { heightmap, normals, biomeId }
       transfer = [heightmap.buffer as ArrayBuffer, normals.buffer as ArrayBuffer]
     } else if (method === 'worldUpdate') {
       const [playerX, playerZ] = args as [number, number]
