@@ -1,5 +1,5 @@
-// Typed wrappers for Go WASM exports
-// These stubs will be implemented progressively in later milestones
+// Typed wrappers around Go WASM globals registered at runtime via syscall/js.
+// Stubs here; full implementations land in M2–M7.
 
 declare global {
   function go_ping(): string
@@ -9,10 +9,15 @@ declare global {
   function go_getChunkHeight(chunkX: number, chunkZ: number, worldX: number, worldZ: number): number
   function go_decodeHeightmapImage(imageBytes: Uint8Array, outputResolution: number): Float32Array
   function go_generateHeightmap(configJSON: string): Float32Array
-  function go_computeNormals(heightmapBuffer: Float32Array, resolution: number, chunkSize: number, heightScale: number): Float32Array
+  function go_computeNormals(
+    heightmapBuffer: Float32Array,
+    resolution: number,
+    chunkSize: number,
+    heightScale: number,
+  ): Float32Array
 }
 
-export class WasmBridge {
+export default class WasmBridge {
   static ping(): string {
     return go_ping()
   }
@@ -41,7 +46,12 @@ export class WasmBridge {
     return go_generateHeightmap(JSON.stringify(config))
   }
 
-  static computeNormals(heightmapBuffer: Float32Array, resolution: number, chunkSize: number, heightScale: number): Float32Array {
+  static computeNormals(
+    heightmapBuffer: Float32Array,
+    resolution: number,
+    chunkSize: number,
+    heightScale: number,
+  ): Float32Array {
     return go_computeNormals(heightmapBuffer, resolution, chunkSize, heightScale)
   }
 }
