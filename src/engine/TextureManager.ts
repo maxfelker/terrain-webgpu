@@ -1,7 +1,6 @@
 // Manages GPU textures for terrain rendering.
 // Generates procedural grass and rock textures at construction time.
 export default class TextureManager {
-  private device: GPUDevice
   private grassTexture: GPUTexture
   private rockTexture: GPUTexture
   private sampler: GPUSampler
@@ -9,7 +8,6 @@ export default class TextureManager {
   readonly bindGroup: GPUBindGroup
 
   constructor(device: GPUDevice) {
-    this.device = device
     this.grassTexture = generateGrassTexture(device)
     this.rockTexture = generateRockTexture(device)
 
