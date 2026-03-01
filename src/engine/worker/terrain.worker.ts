@@ -28,6 +28,35 @@ function handleWorldUpdate(data: { playerX: number; playerZ: number }): void {
   self.postMessage({ type: 'WORLD_UPDATE', update: JSON.parse(json) })
 }
 
+function handleCall(event: MessageEvent): void {
+  const { id, method, args } = event.data
+  try {
+    let result: unknown
+    let transfer: Transferable[] = []
+
+    if (method === 'initWorld') {
+      go_initWorld(args[0] as string)
+      result = null
+    } else if (method === 'generateHeightmap') {
+      const arr = go_generateHeightmap(args[0] as string, args[1] as number, args[2] as number)
+      result = arr
+      transfer = [arr.buffer]
+    } else if (method === 'computeNormals') {
+      const heightmap = new Float32Array(event.data.heightmapBuffer as ArrayBuffer)
+      const [resolution, chunkSize, heightScale] = args as [number, number, number]
+      const arr = go_computeNormals(heightmap, resolution, chunkSize, heightScale)
+      result = arr
+      transfer = [arr.buffer]
+    } else {
+      throw new Error(`Unknown method: ${method}`)
+    }
+
+    self.postMessage({ type: 'RESULT', id, result }, transfer)
+  } catch (err) {
+    self.postMessage({ type: 'RESULT', id, error: String(err) })
+  }
+}
+
 function handleMessage(event: MessageEvent): void {
   const { type } = event.data
 
@@ -43,6 +72,7 @@ function handleMessage(event: MessageEvent): void {
 
   if (type === 'PING') handlePing()
   if (type === 'WORLD_UPDATE') handleWorldUpdate(event.data)
+  if (type === 'CALL') handleCall(event)
 }
 
 self.onmessage = handleMessage
