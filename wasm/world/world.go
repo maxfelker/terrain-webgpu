@@ -9,8 +9,8 @@ import (
 // ChunkGenResult is the data returned when a chunk is generated.
 type ChunkGenResult struct {
 	Coord     ChunkCoord `json:"coord"`
-	Heightmap []float32  `json:"heightmap"`
-	Normals   []float32  `json:"normals"`
+	Heightmap []float32  `json:"-"`
+	Normals   []float32  `json:"-"`
 }
 
 // WorldUpdate is what gets returned to TypeScript after each tick.
