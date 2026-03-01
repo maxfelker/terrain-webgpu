@@ -58,15 +58,9 @@ export default class WasmClient {
     chunkSize: number,
     heightScale: number,
   ): Promise<Float32Array> {
-    const id = this.nextId++
-    const buf = heightmap.buffer.slice(0)
-    return new Promise((resolve) => {
-      this.pending.set(id, resolve as (data: unknown) => void)
-      this.worker.postMessage(
-        { type: 'CALL', id, method: 'computeNormals', args: [resolution, chunkSize, heightScale], heightmapBuffer: buf },
-        { transfer: [buf] },
-      )
-    })
+    // Pass heightmap directly in args — structured clone copies it safely.
+    // Manual buffer transfer caused the buffer to arrive as undefined in the worker.
+    return this.call('computeNormals', [heightmap, resolution, chunkSize, heightScale]) as Promise<Float32Array>
   }
 
   terminate(): void {

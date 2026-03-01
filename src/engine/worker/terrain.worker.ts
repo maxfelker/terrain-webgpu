@@ -39,14 +39,17 @@ function handleCall(event: MessageEvent): void {
       result = null
     } else if (method === 'generateHeightmap') {
       const arr = go_generateHeightmap(args[0] as string, args[1] as number, args[2] as number)
+      if (!arr || !arr.buffer) throw new Error('go_generateHeightmap returned no data — WASM may have panicked')
       result = arr
-      transfer = [arr.buffer]
+      transfer = [arr.buffer as ArrayBuffer]
     } else if (method === 'computeNormals') {
-      const heightmap = new Float32Array(event.data.heightmapBuffer as ArrayBuffer)
-      const [resolution, chunkSize, heightScale] = args as [number, number, number]
+      // heightmap arrives via structured clone in args[0] — avoids detached-buffer issues
+      const heightmap = args[0] as Float32Array
+      const [resolution, chunkSize, heightScale] = [args[1], args[2], args[3]] as [number, number, number]
       const arr = go_computeNormals(heightmap, resolution, chunkSize, heightScale)
+      if (!arr || !arr.buffer) throw new Error('go_computeNormals returned no data — WASM may have panicked')
       result = arr
-      transfer = [arr.buffer]
+      transfer = [arr.buffer as ArrayBuffer]
     } else {
       throw new Error(`Unknown method: ${method}`)
     }
