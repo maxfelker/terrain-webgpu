@@ -12,5 +12,5 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['terrain-wasm'],
   },
-  assetsInclude: ['**/*.wasm'],
+  assetsInclude: ['**/*.wasm', '**/*.wgsl'],
 })
