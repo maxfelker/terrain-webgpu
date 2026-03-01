@@ -17,10 +17,14 @@ const EYE_HEIGHT = 0.8
 
 export default class FPSCamera {
   private aspect = 1
-  readonly fov = Math.PI / 3 // 60 degrees
+  private fov = Math.PI / 3 // 60 degrees
 
   setAspect(aspect: number): void {
     this.aspect = aspect
+  }
+
+  setFov(degrees: number): void {
+    this.fov = (Math.max(10, Math.min(170, degrees)) * Math.PI) / 180
   }
 
   getEyePosition(state: PlayerState): [number, number, number] {

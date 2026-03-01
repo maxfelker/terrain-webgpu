@@ -9,8 +9,8 @@ import (
 // ChunkGenResult is the data returned when a chunk is generated.
 type ChunkGenResult struct {
 	Coord     ChunkCoord `json:"coord"`
-	Heightmap []float32  `json:"heightmap"`
-	Normals   []float32  `json:"normals"`
+	Heightmap []float32  `json:"-"`
+	Normals   []float32  `json:"-"`
 }
 
 // WorldUpdate is what gets returned to TypeScript after each tick.
@@ -44,7 +44,7 @@ func (w *World) Update(playerX, playerZ float64) WorldUpdate {
 	playerChunkZ := int(math.Floor(playerZ / chunkSize))
 
 	radius := int(math.Ceil(RenderRadius / chunkSize))
-	var toAdd []ChunkGenResult
+	toAdd := make([]ChunkGenResult, 0)
 
 	for dz := -radius; dz <= radius; dz++ {
 		for dx := -radius; dx <= radius; dx++ {
@@ -80,7 +80,7 @@ func (w *World) Update(playerX, playerZ float64) WorldUpdate {
 	}
 
 	// Evict chunks beyond distance threshold
-	var toRemove []ChunkCoord
+	toRemove := make([]ChunkCoord, 0)
 	for _, coord := range w.registry.ActiveCoords() {
 		worldDX := float64(coord.X)*chunkSize - playerX
 		worldDZ := float64(coord.Z)*chunkSize - playerZ

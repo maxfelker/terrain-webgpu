@@ -14,6 +14,7 @@ export default class InputSystem {
   private keys = new Set<string>()
   private mouseDX = 0
   private mouseDY = 0
+  private sensitivity = 1.0
   private canvas: HTMLCanvasElement | null = null
 
   private onKeyDown = (e: KeyboardEvent): void => {
@@ -26,8 +27,8 @@ export default class InputSystem {
 
   private onMouseMove = (e: MouseEvent): void => {
     if (document.pointerLockElement === this.canvas) {
-      this.mouseDX += e.movementX
-      this.mouseDY += e.movementY
+      this.mouseDX += e.movementX * this.sensitivity
+      this.mouseDY += e.movementY * this.sensitivity
     }
   }
 
@@ -60,5 +61,9 @@ export default class InputSystem {
     this.mouseDX = 0
     this.mouseDY = 0
     return snap
+  }
+
+  setSensitivity(multiplier: number): void {
+    this.sensitivity = Math.max(0.1, multiplier)
   }
 }

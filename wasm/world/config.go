@@ -10,8 +10,8 @@ const (
 
 // ChunkCoord identifies a chunk by grid position.
 type ChunkCoord struct {
-	X int `json:"x"`
-	Z int `json:"z"`
+	X int `json:"X"`
+	Z int `json:"Z"`
 }
 
 // ChunkStatus represents the chunk lifecycle state.

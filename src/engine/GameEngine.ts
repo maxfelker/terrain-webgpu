@@ -8,11 +8,11 @@ import InputSystem from './InputSystem'
 import FPSCamera from './FPSCamera'
 import type { PlayerState } from './FPSCamera'
 import mat4 from './math/mat4'
+import { load } from './Settings'
 
 const FALLBACK_EYE: [number, number, number] = [768, 320, 768]
 const FALLBACK_CENTER: [number, number, number] = [256, 0, 256]
 const FALLBACK_UP: [number, number, number] = [0, 1, 0]
-const FOG_DENSITY = 0.000008
 
 export default class GameEngine {
   private device: GPUDevice
@@ -31,6 +31,7 @@ export default class GameEngine {
   private frameCount = 0
   private fps = 0
   private pointerLocked = false
+  private fogDensity = load('fogDensity')
   onHudUpdate: ((playerState: PlayerState | null, fps: number) => void) | null = null
 
   private onPointerLockChange = (): void => {
@@ -55,7 +56,11 @@ export default class GameEngine {
       this.playerState = state
     }
 
-    this.textureManager = new TextureManager(this.device)
+    this.textureManager = await TextureManager.loadFromUrls(
+      this.device,
+      '/textures/grass.jpg',
+      '/textures/rock.jpg',
+    )
 
     const { pipeline, bindGroupLayout } = createTerrainPipeline(
       this.device,
@@ -71,6 +76,8 @@ export default class GameEngine {
 
     this.inputSystem = new InputSystem()
     this.fpsCamera = new FPSCamera()
+    this.fpsCamera.setFov(load('fov'))
+    this.inputSystem.setSensitivity(load('mouseSensitivity') / 0.002)
 
     const canvas = this.context.canvas as HTMLCanvasElement
     this.inputSystem.attach(canvas)
@@ -82,8 +89,17 @@ export default class GameEngine {
     this.rafId = requestAnimationFrame((t) => this.render(t))
   }
 
-  updateTexture(slot: 'grass' | 'rock', bitmap: ImageBitmap): void {
-    this.textureManager?.updateTexture(this.device, slot, bitmap)
+  setFogDensity(density: number): void {
+    this.fogDensity = density
+  }
+
+  setFov(degrees: number): void {
+    this.fpsCamera?.setFov(degrees)
+  }
+
+  setMouseSensitivity(s: number): void {
+    // Normalize relative to physics default of 0.002
+    this.inputSystem?.setSensitivity(s / 0.002)
   }
 
   stop(): void {
@@ -146,7 +162,7 @@ export default class GameEngine {
     const visibleChunks = this.chunkManager.filterByFrustum(planes)
 
     const cameraData = new Float32Array([eyePos[0], eyePos[1], eyePos[2], 0])
-    const fogData = new Float32Array([FOG_DENSITY, 0, 0, 0])
+    const fogData = new Float32Array([this.fogDensity, 0, 0, 0])
 
     for (const chunk of visibleChunks) {
       this.device.queue.writeBuffer(chunk.uniformBuffer, 0, viewProj.buffer as ArrayBuffer, viewProj.byteOffset, viewProj.byteLength)
