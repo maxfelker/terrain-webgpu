@@ -54,6 +54,10 @@ function handleCall(event: MessageEvent): void {
 
       result = { heightmap, normals }
       transfer = [heightmap.buffer as ArrayBuffer, normals.buffer as ArrayBuffer]
+    } else if (method === 'worldUpdate') {
+      const [playerX, playerZ] = args as [number, number]
+      const json = go_worldUpdate(playerX, playerZ) as string
+      result = JSON.parse(json)
     } else {
       throw new Error(`Unknown method: ${method}`)
     }

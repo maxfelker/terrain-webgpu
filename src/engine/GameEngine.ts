@@ -38,6 +38,9 @@ export default class GameEngine {
     this.pointerLocked = document.pointerLockElement === canvas
   }
 
+  private lastStreamX = 0
+  private lastStreamZ = 0
+
   constructor(device: GPUDevice, context: GPUCanvasContext, format: GPUTextureFormat) {
     this.device = device
     this.context = context
@@ -109,6 +112,17 @@ export default class GameEngine {
     if (this.pointerLocked && this.wasmClient && this.inputSystem) {
       const snap = this.inputSystem.flush()
       this.wasmClient.tick(JSON.stringify(snap), dt)
+    }
+
+    if (this.playerState) {
+      const dx = this.playerState.x - this.lastStreamX
+      const dz = this.playerState.z - this.lastStreamZ
+      if (dx * dx + dz * dz > 256 * 256) {
+        this.lastStreamX = this.playerState.x
+        this.lastStreamZ = this.playerState.z
+        this.chunkManager?.streamUpdate(this.playerState.x, this.playerState.z)
+          .catch(console.error)
+      }
     }
 
     let viewProj: Float32Array

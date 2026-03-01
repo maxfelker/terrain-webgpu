@@ -1,6 +1,11 @@
 // Main-thread async wrapper around the terrain WASM worker.
 import type { PlayerState } from './FPSCamera'
 
+export interface WorldUpdate {
+  chunksToAdd: Array<{ coord: { X: number; Z: number } }>
+  chunksToRemove: Array<{ X: number; Z: number }>
+}
+
 export default class WasmClient {
   private worker: Worker
   private nextId = 0
@@ -70,6 +75,10 @@ export default class WasmClient {
       'generateChunk',
       [JSON.stringify(config), chunkX, chunkZ, resolution, chunkSize, heightScale],
     ) as Promise<{ heightmap: Float32Array; normals: Float32Array }>
+  }
+
+  async worldUpdate(playerX: number, playerZ: number): Promise<WorldUpdate> {
+    return this.call('worldUpdate', [playerX, playerZ]) as Promise<WorldUpdate>
   }
 
   terminate(): void {

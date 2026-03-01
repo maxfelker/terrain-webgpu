@@ -31,13 +31,37 @@ export default class ChunkManager {
   }
 
   async init(): Promise<void> {
-    await this.wasmClient.initWorld({})
-    for (const cx of [-1, 0, 1]) {
-      for (const cz of [-1, 0, 1]) {
-        const chunk = await this.generateChunk(cx, cz)
-        this.activeChunks.push(chunk)
-      }
+    await this.wasmClient.initWorld({
+      HeightmapResolution: RESOLUTION,
+      Dimension: CHUNK_SIZE,
+      Height: HEIGHT_SCALE,
+    })
+    await this.streamUpdate(256, 256)
+  }
+
+  async streamUpdate(playerX: number, playerZ: number): Promise<void> {
+    const update = await this.wasmClient.worldUpdate(playerX, playerZ)
+
+    for (const coord of update.chunksToRemove) {
+      this.removeChunk(coord.X, coord.Z)
     }
+
+    for (const chunkRef of update.chunksToAdd) {
+      const { X: cx, Z: cz } = chunkRef.coord
+      if (this.activeChunks.some(c => c.coord.x === cx && c.coord.z === cz)) continue
+      const chunk = await this.generateChunk(cx, cz)
+      this.activeChunks.push(chunk)
+    }
+  }
+
+  private removeChunk(cx: number, cz: number): void {
+    const idx = this.activeChunks.findIndex(c => c.coord.x === cx && c.coord.z === cz)
+    if (idx === -1) return
+    const chunk = this.activeChunks[idx]
+    chunk.vertexBuffer.destroy()
+    chunk.indexBuffer.destroy()
+    chunk.uniformBuffer.destroy()
+    this.activeChunks.splice(idx, 1)
   }
 
   async generateChunk(cx: number, cz: number): Promise<ChunkGPUData> {
