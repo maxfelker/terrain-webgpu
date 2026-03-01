@@ -14,7 +14,6 @@ export default function HUD({ playerState, fps }: Props) {
         {playerState && (
           <>
             <div>X: {playerState.x.toFixed(1)} Y: {playerState.y.toFixed(1)} Z: {playerState.z.toFixed(1)}</div>
-            <div>Stamina: {playerState.stamina.toFixed(1)}</div>
             <div>{playerState.grounded ? 'GROUNDED' : 'AIRBORNE'}</div>
           </>
         )}

@@ -132,8 +132,16 @@ func goGenerateChunk(_ js.Value, args []js.Value) any {
 	cfg.HeightmapResolution = resolution
 	cfg.Dimension = chunkSize
 
+	cfg.Height = int(heightScale)
 	hm := terrain.GenerateHeightmap(cx, cz, cfg)
 	normals := terrain.ComputeNormals(hm, resolution, float64(chunkSize), heightScale)
+
+	// Store heightmap so physics can sample terrain height for collision/spawning.
+	coord := world.ChunkCoord{X: cx, Z: cz}
+	globalHeightmaps[coord] = hm
+	if globalWorld != nil {
+		globalWorld.SetHeight(int(heightScale))
+	}
 
 	// Return as a single flat Float32Array: [heightmap..., normals...]
 	combined := make([]float32, len(hm)+len(normals))

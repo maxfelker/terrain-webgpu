@@ -18,18 +18,9 @@ func Update(p *PlayerState, input InputState, dt float64, heightAt func(x, z flo
 	// 2. Determine speed
 	speed := WalkSpeed
 	p.Sprinting = false
-	if input.Sprint && p.Stamina > 0 && (input.Forward || input.Backward || input.Left || input.Right) {
+	if input.Sprint && (input.Forward || input.Backward || input.Left || input.Right) {
 		speed = SprintSpeed
 		p.Sprinting = true
-		p.Stamina -= dt * (MaxStamina / (MaxStamina * 3)) // drain: 5 seconds to empty
-		if p.Stamina < 0 {
-			p.Stamina = 0
-		}
-	} else if p.Stamina < MaxStamina {
-		p.Stamina += dt * (MaxStamina / (StaminaRecharge * MaxStamina)) // recharge
-		if p.Stamina > MaxStamina {
-			p.Stamina = MaxStamina
-		}
 	}
 
 	// 3. Horizontal movement in yaw-facing direction
@@ -73,22 +64,39 @@ func Update(p *PlayerState, input InputState, dt float64, heightAt func(x, z flo
 	// 5. Gravity
 	p.VelocityY += Gravity * dt
 
-	// 6. Jump
-	if input.Jump && p.Grounded {
-		p.VelocityY = JumpVelocity
+	// 6. Jump initiation — sets JumpProgress to begin smooth ramp
+	if input.Jump && p.Grounded && p.JumpProgress == 0 {
+		p.JumpProgress = 1.0
 		p.Grounded = false
+		p.CoyoteFrames = CoyoteGrace + 1 // skip coyote grace so we don't re-land
+	}
+
+	// 6a. Smooth jump ramp — lerp VelocityY toward JumpVelocity over ~3 frames
+	if p.JumpProgress > 0 {
+		p.VelocityY += (JumpVelocity - p.VelocityY) * 0.5
+		p.JumpProgress -= 0.35
+		if p.JumpProgress < 0 {
+			p.JumpProgress = 0
+		}
 	}
 
 	// 7. Vertical integration
 	p.Y += p.VelocityY * dt
 
-	// 8. Ground collision — terrain height + capsule
+	// 8. Ground collision with coyote-time to prevent airborne flicker on micro-bumps
 	groundH := heightAt(p.X, p.Z) + CapsuleHalfHeight + CapsuleRadius
-	if p.Y <= groundH {
+	if p.Y <= groundH && p.JumpProgress == 0 {
 		p.Y = groundH
 		p.VelocityY = 0
 		p.Grounded = true
-	} else {
-		p.Grounded = false
+		p.CoyoteFrames = 0
+	} else if p.Y > groundH {
+		if p.Grounded && p.CoyoteFrames < CoyoteGrace && p.JumpProgress == 0 {
+			// Grace period: keep grounded for a few ticks after leaving ground
+			p.CoyoteFrames++
+		} else {
+			p.Grounded = false
+			p.CoyoteFrames = 0
+		}
 	}
 }

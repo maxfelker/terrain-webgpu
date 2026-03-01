@@ -5,7 +5,7 @@ import "testing"
 func flatGround(x, z float64) float64 { return 0 }
 
 func TestMouseLook(t *testing.T) {
-	p := &PlayerState{Stamina: MaxStamina}
+	p := &PlayerState{}
 	Update(p, InputState{MouseDX: 1.0, MouseDY: 0}, 0.016, flatGround)
 	if p.Yaw == 0 {
 		t.Error("yaw should have changed")
@@ -13,7 +13,7 @@ func TestMouseLook(t *testing.T) {
 }
 
 func TestPitchClamp(t *testing.T) {
-	p := &PlayerState{Stamina: MaxStamina}
+	p := &PlayerState{}
 	Update(p, InputState{MouseDY: 10000}, 0.016, flatGround)
 	if p.Pitch > PitchMax {
 		t.Errorf("pitch %f exceeds max %f", p.Pitch, PitchMax)
@@ -26,7 +26,7 @@ func TestPitchClamp(t *testing.T) {
 
 func TestGravity(t *testing.T) {
 	// Start just above ground so player lands within 60 frames (~1s)
-	p := &PlayerState{Y: 5, Stamina: MaxStamina}
+	p := &PlayerState{Y: 5}
 	for range 60 {
 		Update(p, InputState{}, 0.016, flatGround)
 	}
@@ -41,7 +41,7 @@ func TestGravity(t *testing.T) {
 }
 
 func TestJump(t *testing.T) {
-	p := &PlayerState{Y: CapsuleHalfHeight + CapsuleRadius, Grounded: true, Stamina: MaxStamina}
+	p := &PlayerState{Y: CapsuleHalfHeight + CapsuleRadius, Grounded: true}
 	Update(p, InputState{Jump: true}, 0.016, flatGround)
 	if p.VelocityY <= 0 {
 		t.Error("jump should give positive velocity")
@@ -54,7 +54,7 @@ func TestJump(t *testing.T) {
 func TestSlopeBlocking(t *testing.T) {
 	// Steep slope — terrain rises 10m over 1m horizontal = ~84 degrees
 	steepGround := func(x, z float64) float64 { return x * 10.0 }
-	p := &PlayerState{X: 0, Z: 0, Y: CapsuleHalfHeight + CapsuleRadius, Grounded: true, Stamina: MaxStamina}
+	p := &PlayerState{X: 0, Z: 0, Y: CapsuleHalfHeight + CapsuleRadius, Grounded: true}
 	prevX := p.X
 	Update(p, InputState{Forward: true}, 0.016, steepGround)
 	// On 84 degree slope, movement should be blocked
@@ -63,23 +63,3 @@ func TestSlopeBlocking(t *testing.T) {
 	}
 }
 
-func TestSprintDrainsStamina(t *testing.T) {
-	p := &PlayerState{Stamina: MaxStamina, Grounded: true, Y: CapsuleHalfHeight + CapsuleRadius}
-	initial := p.Stamina
-	for range 60 {
-		Update(p, InputState{Forward: true, Sprint: true}, 0.016, flatGround)
-	}
-	if p.Stamina >= initial {
-		t.Error("stamina should drain when sprinting")
-	}
-}
-
-func TestStaminaRecharges(t *testing.T) {
-	p := &PlayerState{Stamina: 0}
-	for range 60 {
-		Update(p, InputState{}, 0.016, flatGround)
-	}
-	if p.Stamina <= 0 {
-		t.Error("stamina should recharge when not sprinting")
-	}
-}

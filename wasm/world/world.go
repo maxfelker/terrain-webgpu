@@ -32,6 +32,11 @@ func New(cfg terrain.ChunkConfig) *World {
 	}
 }
 
+// SetHeight updates the world's height scale to match the chunk generation parameters.
+func (w *World) SetHeight(h int) {
+	w.cfg.Height = h
+}
+
 // Update computes which chunks to add/remove based on player position.
 func (w *World) Update(playerX, playerZ float64) WorldUpdate {
 	chunkSize := float64(w.cfg.Dimension)

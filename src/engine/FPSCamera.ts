@@ -8,8 +8,9 @@ export interface PlayerState {
   pitch: number
   velocityY: number
   grounded: boolean
-  stamina: number
   sprinting: boolean
+  coyoteFrames: number
+  jumpProgress: number
 }
 
 const EYE_HEIGHT = 0.8
