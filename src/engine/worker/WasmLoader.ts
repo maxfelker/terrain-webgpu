@@ -18,7 +18,6 @@ export default async function loadWasm(options: WasmLoaderOptions): Promise<void
 
   importScripts(wasmExecUrl)
 
-  // @ts-expect-error — Go class is injected into global scope by wasm_exec.js
   const go = new Go()
 
   const result = await WebAssembly.instantiateStreaming(

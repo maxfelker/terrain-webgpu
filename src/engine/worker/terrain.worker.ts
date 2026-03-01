@@ -19,13 +19,11 @@ function handleInit(): void {
 }
 
 function handlePing(): void {
-  // @ts-expect-error — go_ping registered at runtime by Go WASM
   const result = go_ping() as string
   self.postMessage({ type: 'PONG', result })
 }
 
 function handleWorldUpdate(data: { playerX: number; playerZ: number }): void {
-  // @ts-expect-error — go_worldUpdate registered at runtime by Go WASM
   const json = go_worldUpdate(data.playerX, data.playerZ) as string
   self.postMessage({ type: 'WORLD_UPDATE', update: JSON.parse(json) })
 }
