@@ -1,33 +1,43 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { useRef, useState, useEffect } from 'react'
+import GameCanvas from './components/GameCanvas'
+import { useWebGPU } from './hooks/useWebGPU'
+import { renderHelloTriangle } from './engine/HelloTriangle'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [pointerLocked, setPointerLocked] = useState(false)
+  const { device, context, format, error, isReady } = useWebGPU(canvasRef)
+  const triangleStarted = useRef(false)
+
+  useEffect(() => {
+    if (!isReady || !device || !context || !format) return
+    if (triangleStarted.current) return
+    triangleStarted.current = true
+    renderHelloTriangle(device, context, format)
+  }, [isReady, device, context, format])
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+      {error && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: '#0a0a0a', color: '#ff4444', fontFamily: 'monospace',
+          fontSize: '1.2rem', padding: '2rem', textAlign: 'center', zIndex: 100
+        }}>
+          {error}
+        </div>
+      )}
+      <GameCanvas ref={canvasRef} onPointerLock={setPointerLocked} />
+      <div style={{
+        position: 'fixed', bottom: 16, left: 16,
+        color: '#aaa', fontFamily: 'monospace', fontSize: '0.75rem',
+        pointerEvents: 'none', userSelect: 'none',
+      }}>
+        {isReady ? '✓ WebGPU Ready' : 'Initializing WebGPU...'}
+        {pointerLocked && ' | Click to unlock'}
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
     </>
   )
 }
