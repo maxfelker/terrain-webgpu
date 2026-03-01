@@ -2,6 +2,7 @@ package world
 
 import (
 	"math"
+	"sort"
 
 	"github.com/maxfelker/terrain-webgpu/wasm/terrain"
 )
@@ -51,9 +52,10 @@ func (w *World) Update(playerX, playerZ float64) WorldUpdate {
 			cx := playerChunkX + dx
 			cz := playerChunkZ + dz
 
-			worldDX := float64(cx)*chunkSize - playerX
-			worldDZ := float64(cz)*chunkSize - playerZ
-			if worldDX*worldDX+worldDZ*worldDZ > RenderRadius*RenderRadius {
+			// Use chunk center for circular distance check
+			centerDX := (float64(cx)+0.5)*chunkSize - playerX
+			centerDZ := (float64(cz)+0.5)*chunkSize - playerZ
+			if centerDX*centerDX+centerDZ*centerDZ > RenderRadius*RenderRadius {
 				continue
 			}
 
@@ -61,30 +63,28 @@ func (w *World) Update(playerX, playerZ float64) WorldUpdate {
 			if w.registry.IsActive(coord) {
 				continue
 			}
-			if !w.registry.CanDispatch() {
-				break
-			}
 
-			w.registry.MarkGenerating(coord)
-			hm := terrain.GenerateHeightmap(cx, cz, w.cfg)
-			normals := terrain.ComputeNormals(hm, w.cfg.HeightmapResolution, float64(w.cfg.Dimension), float64(w.cfg.Height))
-			w.registry.MarkReady(coord)
 			w.registry.MarkActive(coord)
-
-			toAdd = append(toAdd, ChunkGenResult{
-				Coord:     coord,
-				Heightmap: hm,
-				Normals:   normals,
-			})
+			toAdd = append(toAdd, ChunkGenResult{Coord: coord})
 		}
 	}
+
+	// Sort toAdd by distance from player (nearest first for better UX)
+	sort.Slice(toAdd, func(i, j int) bool {
+		ci, cj := toAdd[i].Coord, toAdd[j].Coord
+		di := (float64(ci.X)+0.5)*chunkSize - playerX
+		dj := (float64(cj.X)+0.5)*chunkSize - playerX
+		diz := (float64(ci.Z)+0.5)*chunkSize - playerZ
+		djz := (float64(cj.Z)+0.5)*chunkSize - playerZ
+		return di*di+diz*diz < dj*dj+djz*djz
+	})
 
 	// Evict chunks beyond distance threshold
 	toRemove := make([]ChunkCoord, 0)
 	for _, coord := range w.registry.ActiveCoords() {
-		worldDX := float64(coord.X)*chunkSize - playerX
-		worldDZ := float64(coord.Z)*chunkSize - playerZ
-		if worldDX*worldDX+worldDZ*worldDZ > DistanceThreshold*DistanceThreshold {
+		centerDX := (float64(coord.X)+0.5)*chunkSize - playerX
+		centerDZ := (float64(coord.Z)+0.5)*chunkSize - playerZ
+		if centerDX*centerDX+centerDZ*centerDZ > DistanceThreshold*DistanceThreshold {
 			w.registry.Remove(coord)
 			toRemove = append(toRemove, coord)
 		}
