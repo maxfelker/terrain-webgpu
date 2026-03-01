@@ -35,8 +35,9 @@ export default class ChunkManager {
   }
 
   async generateChunk(cx: number, cz: number): Promise<ChunkGPUData> {
-    const heightmap = await this.wasmClient.generateHeightmap({}, cx, cz)
-    const normals = await this.wasmClient.computeNormals(heightmap, RESOLUTION, CHUNK_SIZE, HEIGHT_SCALE)
+    const { heightmap, normals } = await this.wasmClient.generateChunk(
+      {}, cx, cz, RESOLUTION, CHUNK_SIZE, HEIGHT_SCALE,
+    )
 
     const { data: vertexData } = MeshBuilder.buildVertexBuffer(
       heightmap, normals, RESOLUTION, CHUNK_SIZE, HEIGHT_SCALE,

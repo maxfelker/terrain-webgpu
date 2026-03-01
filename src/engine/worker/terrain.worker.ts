@@ -37,19 +37,22 @@ function handleCall(event: MessageEvent): void {
     if (method === 'initWorld') {
       go_initWorld(args[0] as string)
       result = null
-    } else if (method === 'generateHeightmap') {
-      const arr = go_generateHeightmap(args[0] as string, args[1] as number, args[2] as number)
-      if (!arr || !arr.buffer) throw new Error('go_generateHeightmap returned no data — WASM may have panicked')
-      result = arr
-      transfer = [arr.buffer as ArrayBuffer]
-    } else if (method === 'computeNormals') {
-      // heightmap arrives via structured clone in args[0] — avoids detached-buffer issues
-      const heightmap = args[0] as Float32Array
-      const [resolution, chunkSize, heightScale] = [args[1], args[2], args[3]] as [number, number, number]
-      const arr = go_computeNormals(heightmap, resolution, chunkSize, heightScale)
-      if (!arr || !arr.buffer) throw new Error('go_computeNormals returned no data — WASM may have panicked')
-      result = arr
-      transfer = [arr.buffer as ArrayBuffer]
+    } else if (method === 'generateChunk') {
+      // Generate heightmap AND normals in a single worker call.
+      // The heightmap never crosses the thread boundary before normals are computed,
+      // which avoids the detached-buffer / empty-Float32Array issue.
+      const [configJSON, cx, cz, resolution, chunkSize, heightScale] =
+        args as [string, number, number, number, number, number]
+
+      const heightmap = go_generateHeightmap(configJSON, cx, cz)
+      if (!heightmap || !heightmap.buffer) throw new Error('go_generateHeightmap returned no data')
+
+      const normals = go_computeNormals(heightmap, resolution, chunkSize, heightScale)
+      if (!normals || !normals.buffer) throw new Error('go_computeNormals returned no data')
+
+      // Transfer both arrays to the main thread.
+      result = { heightmap, normals }
+      transfer = [heightmap.buffer as ArrayBuffer, normals.buffer as ArrayBuffer]
     } else {
       throw new Error(`Unknown method: ${method}`)
     }

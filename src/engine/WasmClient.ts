@@ -48,19 +48,18 @@ export default class WasmClient {
     await this.call('initWorld', [JSON.stringify(config)])
   }
 
-  async generateHeightmap(config: object, chunkX: number, chunkZ: number): Promise<Float32Array> {
-    return this.call('generateHeightmap', [JSON.stringify(config), chunkX, chunkZ]) as Promise<Float32Array>
-  }
-
-  async computeNormals(
-    heightmap: Float32Array,
+  async generateChunk(
+    config: object,
+    chunkX: number,
+    chunkZ: number,
     resolution: number,
     chunkSize: number,
     heightScale: number,
-  ): Promise<Float32Array> {
-    // Pass heightmap directly in args — structured clone copies it safely.
-    // Manual buffer transfer caused the buffer to arrive as undefined in the worker.
-    return this.call('computeNormals', [heightmap, resolution, chunkSize, heightScale]) as Promise<Float32Array>
+  ): Promise<{ heightmap: Float32Array; normals: Float32Array }> {
+    return this.call(
+      'generateChunk',
+      [JSON.stringify(config), chunkX, chunkZ, resolution, chunkSize, heightScale],
+    ) as Promise<{ heightmap: Float32Array; normals: Float32Array }>
   }
 
   terminate(): void {
