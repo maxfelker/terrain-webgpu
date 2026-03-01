@@ -38,19 +38,20 @@ function handleCall(event: MessageEvent): void {
       go_initWorld(args[0] as string)
       result = null
     } else if (method === 'generateChunk') {
-      // Generate heightmap AND normals in a single worker call.
-      // The heightmap never crosses the thread boundary before normals are computed,
-      // which avoids the detached-buffer / empty-Float32Array issue.
       const [configJSON, cx, cz, resolution, chunkSize, heightScale] =
         args as [string, number, number, number, number, number]
 
-      const heightmap = go_generateHeightmap(configJSON, cx, cz)
-      if (!heightmap || !heightmap.buffer) throw new Error('go_generateHeightmap returned no data')
+      // go_generateChunk runs both heightmap generation and normal computation
+      // entirely inside Go using pure Go slices — no JS Float32Array is ever
+      // passed between two Go WASM functions (which silently produces length 0).
+      // Returns flat Float32Array: [heightmap(res×res)..., normals(res×res×3)...]
+      const combined = go_generateChunk(configJSON, cx, cz, resolution, chunkSize, heightScale)
+      if (!combined || !combined.buffer) throw new Error('go_generateChunk returned no data')
 
-      const normals = go_computeNormals(heightmap, resolution, chunkSize, heightScale)
-      if (!normals || !normals.buffer) throw new Error('go_computeNormals returned no data')
+      const hmLen = resolution * resolution
+      const heightmap = combined.slice(0, hmLen)   // copy, own buffer
+      const normals   = combined.slice(hmLen)       // copy, own buffer
 
-      // Transfer both arrays to the main thread.
       result = { heightmap, normals }
       transfer = [heightmap.buffer as ArrayBuffer, normals.buffer as ArrayBuffer]
     } else {

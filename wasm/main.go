@@ -25,6 +25,7 @@ func main() {
 	js.Global().Set("go_generateHeightmap", js.FuncOf(goGenerateHeightmap))
 	js.Global().Set("go_computeNormals", js.FuncOf(goComputeNormals))
 	js.Global().Set("go_getChunkHeight", js.FuncOf(goGetChunkHeight))
+	js.Global().Set("go_generateChunk", js.FuncOf(goGenerateChunk))
 
 	fmt.Println("[WASM] exports registered, engine ready")
 	select {}
@@ -101,6 +102,40 @@ func goGetChunkHeight(_ js.Value, args []js.Value) any {
 	worldX := args[0].Float()
 	worldZ := args[1].Float()
 	return globalWorld.SampleHeight(worldX, worldZ, globalHeightmaps)
+}
+
+// goGenerateChunk generates heightmap and normals entirely in Go using pure Go slices.
+// This avoids passing JS typed arrays between Go WASM function calls, which can
+// produce empty arrays due to syscall/js value lifecycle behaviour.
+//
+// Args: configJSON string, chunkX int, chunkZ int, resolution int, chunkSize int, heightScale float64
+// Returns: flat Float32Array [heightmap(res×res)..., normals(res×res×3)...]
+// TypeScript splits via: hm = buf.subarray(0, res*res), normals = buf.subarray(res*res)
+func goGenerateChunk(_ js.Value, args []js.Value) any {
+	cfg := terrain.DefaultConfig()
+	cfgStr := args[0].String()
+	if cfgStr != "" && cfgStr != "{}" {
+		if err := json.Unmarshal([]byte(cfgStr), &cfg); err != nil {
+			return jsError(err)
+		}
+	}
+	cx := args[1].Int()
+	cz := args[2].Int()
+	resolution := args[3].Int()
+	chunkSize := args[4].Int()
+	heightScale := args[5].Float()
+
+	cfg.HeightmapResolution = resolution
+	cfg.Dimension = chunkSize
+
+	hm := terrain.GenerateHeightmap(cx, cz, cfg)
+	normals := terrain.ComputeNormals(hm, resolution, float64(chunkSize), heightScale)
+
+	// Return as a single flat Float32Array: [heightmap..., normals...]
+	combined := make([]float32, len(hm)+len(normals))
+	copy(combined, hm)
+	copy(combined[len(hm):], normals)
+	return float32SliceToJS(combined)
 }
 
 func float32SliceToJS(s []float32) js.Value {
