@@ -37,7 +37,15 @@ export default function App() {
   return (
     <>
       {error && <div className={styles.errorOverlay}>{error}</div>}
-      <GameCanvas ref={canvasRef} onPointerLock={setPointerLocked} playerState={playerState} fps={fps} />
+      <GameCanvas
+        ref={canvasRef}
+        onPointerLock={setPointerLocked}
+        playerState={playerState}
+        fps={fps}
+        onFogDensityChange={(v: number) => engineRef.current?.setFogDensity(v)}
+        onFovChange={(v: number) => engineRef.current?.setFov(v)}
+        onMouseSensitivityChange={(v: number) => engineRef.current?.setMouseSensitivity(v)}
+      />
       <TextureUploader onTextureLoad={(slot, bmp) => engineRef.current?.updateTexture(slot, bmp)} />
       <div className={styles.status}>
         {isReady ? '✓ WebGPU Ready' : 'Initializing WebGPU...'}
