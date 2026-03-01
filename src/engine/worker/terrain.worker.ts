@@ -1,29 +1,38 @@
-// Web Worker: loads the Go WASM terrain engine and handles messages from the main thread
+// Web Worker: loads the Go WASM terrain engine and dispatches game logic messages.
+// All WASM instantiation is delegated to WasmLoader.
 
-declare function importScripts(...urls: string[]): void
+import loadWasm from './WasmLoader'
 
 let wasmReady = false
 
-async function initWasm(): Promise<void> {
-  importScripts('/wasm_exec.js')
+function handleInit(): void {
+  loadWasm({ wasmExecUrl: '/wasm_exec.js', wasmBinaryUrl: '/terrain.wasm' })
+    .then(() => {
+      wasmReady = true
+      console.log('[Worker] WASM Ready')
+      self.postMessage({ type: 'READY' })
+    })
+    .catch(err => {
+      console.error('[Worker] WASM init failed:', err)
+      self.postMessage({ type: 'ERROR', message: String(err) })
+    })
+}
 
-  // @ts-expect-error — Go is injected into global scope by wasm_exec.js
-  const go = new Go()
-  const result = await WebAssembly.instantiateStreaming(fetch('/terrain.wasm'), go.importObject)
-  go.run(result.instance)
-  wasmReady = true
-  console.log('[Worker] WASM Ready')
-  self.postMessage({ type: 'READY' })
+function handlePing(): void {
+  const result = go_ping() as string
+  self.postMessage({ type: 'PONG', result })
+}
+
+function handleWorldUpdate(data: { playerX: number; playerZ: number }): void {
+  const json = go_worldUpdate(data.playerX, data.playerZ) as string
+  self.postMessage({ type: 'WORLD_UPDATE', update: JSON.parse(json) })
 }
 
 function handleMessage(event: MessageEvent): void {
   const { type } = event.data
 
   if (type === 'INIT') {
-    initWasm().catch(err => {
-      console.error('[Worker] WASM init failed:', err)
-      self.postMessage({ type: 'ERROR', message: String(err) })
-    })
+    handleInit()
     return
   }
 
@@ -32,10 +41,8 @@ function handleMessage(event: MessageEvent): void {
     return
   }
 
-  if (type === 'PING') {
-    const result = go_ping() as string
-    self.postMessage({ type: 'PONG', result })
-  }
+  if (type === 'PING') handlePing()
+  if (type === 'WORLD_UPDATE') handleWorldUpdate(event.data)
 }
 
 self.onmessage = handleMessage

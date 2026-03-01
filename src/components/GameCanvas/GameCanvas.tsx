@@ -42,7 +42,7 @@ export default function GameCanvas({ ref, onPointerLock }: GameCanvasProps) {
 
   return (
     <div ref={containerRef} className={styles.wrapper}>
-      <canvas ref={ref} className={styles.canvas} />
+      <canvas ref={ref} className={styles.canvas} role="presentation" />
     </div>
   )
 }
