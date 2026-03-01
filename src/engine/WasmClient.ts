@@ -62,10 +62,10 @@ export default class WasmClient {
     const id = this.nextId++
     const buf = heightmap.buffer.slice(0)
     return new Promise((resolve) => {
-      this.pending.set(id, resolve)
+      this.pending.set(id, resolve as (data: unknown) => void)
       this.worker.postMessage(
         { type: 'CALL', id, method: 'computeNormals', args: [resolution, chunkSize, heightScale], heightmapBuffer: buf },
-        [buf],
+        { transfer: [buf] },
       )
     })
   }

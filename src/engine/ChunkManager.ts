@@ -47,13 +47,13 @@ export default class ChunkManager {
       size: vertexData.byteLength,
       usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
     })
-    this.device.queue.writeBuffer(vertexBuffer, 0, vertexData)
+    this.device.queue.writeBuffer(vertexBuffer, 0, vertexData.buffer as ArrayBuffer, vertexData.byteOffset, vertexData.byteLength)
 
     const indexBuffer = this.device.createBuffer({
       size: indexData.byteLength,
       usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
     })
-    this.device.queue.writeBuffer(indexBuffer, 0, indexData)
+    this.device.queue.writeBuffer(indexBuffer, 0, indexData.buffer as ArrayBuffer, indexData.byteOffset, indexData.byteLength)
 
     const uniformBuffer = this.device.createBuffer({
       size: UNIFORM_BUFFER_SIZE,

@@ -60,7 +60,7 @@ export default class GameEngine {
 
     const chunks = this.chunkManager.getActiveChunks()
     for (const chunk of chunks) {
-      this.device.queue.writeBuffer(chunk.uniformBuffer, 0, viewProj)
+      this.device.queue.writeBuffer(chunk.uniformBuffer, 0, viewProj.buffer as ArrayBuffer, viewProj.byteOffset, viewProj.byteLength)
     }
 
     const { encoder, pass } = this.renderer.beginFrame()

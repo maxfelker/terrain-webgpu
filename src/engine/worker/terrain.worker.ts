@@ -51,7 +51,7 @@ function handleCall(event: MessageEvent): void {
       throw new Error(`Unknown method: ${method}`)
     }
 
-    self.postMessage({ type: 'RESULT', id, result }, transfer)
+    self.postMessage({ type: 'RESULT', id, result }, { transfer })
   } catch (err) {
     self.postMessage({ type: 'RESULT', id, error: String(err) })
   }
