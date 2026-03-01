@@ -1,6 +1,25 @@
 // Manages GPU textures for terrain rendering.
 // Generates procedural grass and rock textures at construction time.
 export default class TextureManager {
+  static async loadFromUrls(
+    device: GPUDevice,
+    grassUrl: string,
+    rockUrl: string,
+  ): Promise<TextureManager> {
+    const mgr = new TextureManager(device)
+    try {
+      const [grassBitmap, rockBitmap] = await Promise.all([
+        fetch(grassUrl).then(r => r.blob()).then(b => createImageBitmap(b)),
+        fetch(rockUrl).then(r => r.blob()).then(b => createImageBitmap(b)),
+      ])
+      mgr.updateTexture(device, 'grass', grassBitmap)
+      mgr.updateTexture(device, 'rock', rockBitmap)
+    } catch (err) {
+      console.warn('[TextureManager] Failed to load bundled textures, using procedural fallback:', err)
+    }
+    return mgr
+  }
+
   private grassTexture: GPUTexture
   private rockTexture: GPUTexture
   private sampler: GPUSampler

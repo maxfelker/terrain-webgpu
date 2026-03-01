@@ -1,6 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
 import GameCanvas from './components/GameCanvas/GameCanvas'
-import TextureUploader from './components/TextureUploader/TextureUploader'
 import { useWebGPU } from './hooks/useWebGPU'
 import GameEngine from './engine/GameEngine'
 import type { PlayerState } from './engine/FPSCamera'
@@ -46,9 +45,7 @@ export default function App() {
         onFovChange={(v: number) => engineRef.current?.setFov(v)}
         onMouseSensitivityChange={(v: number) => engineRef.current?.setMouseSensitivity(v)}
       />
-      <TextureUploader onTextureLoad={(slot, bmp) => engineRef.current?.updateTexture(slot, bmp)} />
-      <div className={styles.status}>
-        {isReady ? '✓ WebGPU Ready' : 'Initializing WebGPU...'}
+      <div className={styles.status}>        {isReady ? '✓ WebGPU Ready' : 'Initializing WebGPU...'}
         {pointerLocked && ' | Click to unlock'}
       </div>
     </>

@@ -56,7 +56,11 @@ export default class GameEngine {
       this.playerState = state
     }
 
-    this.textureManager = new TextureManager(this.device)
+    this.textureManager = await TextureManager.loadFromUrls(
+      this.device,
+      '/textures/grass.jpg',
+      '/textures/rock.jpg',
+    )
 
     const { pipeline, bindGroupLayout } = createTerrainPipeline(
       this.device,
@@ -83,10 +87,6 @@ export default class GameEngine {
   start(): void {
     this.lastTimestamp = performance.now()
     this.rafId = requestAnimationFrame((t) => this.render(t))
-  }
-
-  updateTexture(slot: 'grass' | 'rock', bitmap: ImageBitmap): void {
-    this.textureManager?.updateTexture(this.device, slot, bitmap)
   }
 
   setFogDensity(density: number): void {
