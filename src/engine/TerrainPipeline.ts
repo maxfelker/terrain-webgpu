@@ -46,7 +46,7 @@ function createTerrainPipeline(
       entryPoint: 'fs_main',
       targets: [{ format }],
     },
-    primitive: { topology: 'triangle-list' },
+    primitive: { topology: 'triangle-list', cullMode: 'back' },
     depthStencil: {
       format: 'depth24plus',
       depthWriteEnabled: true,
