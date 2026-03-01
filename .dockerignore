@@ -3,5 +3,6 @@ dist
 .git
 .DS_Store
 public/terrain.wasm
+public/wasm_exec.js
 *.aiff
 *.mp3

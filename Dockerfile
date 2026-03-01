@@ -5,7 +5,8 @@ COPY wasm/go.mod wasm/go.sum* ./
 RUN go mod download
 COPY wasm/ .
 RUN go test ./... -count=1
-RUN GOOS=js GOARCH=wasm go build -o /app/public/terrain.wasm .
+RUN GOOS=js GOARCH=wasm go build -o /app/public/terrain.wasm . && \
+    cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" /app/public/wasm_exec.js
 
 # Stage 2: Test and build React + Vite app
 FROM node:24-alpine AS web-builder
@@ -14,6 +15,7 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 COPY . .
 COPY --from=wasm-builder /app/public/terrain.wasm public/terrain.wasm
+COPY --from=wasm-builder /usr/local/go/lib/wasm/wasm_exec.js public/wasm_exec.js
 RUN npm test
 RUN npm run build
 
