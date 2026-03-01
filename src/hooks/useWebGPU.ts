@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import type { RefObject } from 'react'
 
 export interface WebGPUState {
   device: GPUDevice | null
@@ -8,14 +9,16 @@ export interface WebGPUState {
   isReady: boolean
 }
 
-export function useWebGPU(canvasRef: React.RefObject<HTMLCanvasElement | null>): WebGPUState {
-  const [state, setState] = useState<WebGPUState>({
-    device: null,
-    context: null,
-    format: null,
-    error: null,
-    isReady: false,
-  })
+const initialState: WebGPUState = {
+  device: null,
+  context: null,
+  format: null,
+  error: null,
+  isReady: false,
+}
+
+export function useWebGPU(canvasRef: RefObject<HTMLCanvasElement | null>): WebGPUState {
+  const [state, setState] = useState<WebGPUState>(initialState)
   const initRef = useRef(false)
 
   useEffect(() => {
@@ -24,7 +27,7 @@ export function useWebGPU(canvasRef: React.RefObject<HTMLCanvasElement | null>):
 
     async function init() {
       if (!navigator.gpu) {
-        setState(s => ({ ...s, error: 'WebGPU is not supported in this browser. Use Chrome 119+ or Edge 119+.' }))
+        setState(s => ({ ...s, error: 'WebGPU not supported. Use Chrome 119+ or Edge 119+.' }))
         return
       }
 
@@ -35,7 +38,8 @@ export function useWebGPU(canvasRef: React.RefObject<HTMLCanvasElement | null>):
       }
 
       const device = await adapter.requestDevice()
-      device.lost.then((info) => {
+
+      device.lost.then(info => {
         console.error('[WebGPU] Device lost:', info.message)
         setState(s => ({ ...s, device: null, isReady: false, error: `GPU device lost: ${info.message}` }))
       })
@@ -43,15 +47,13 @@ export function useWebGPU(canvasRef: React.RefObject<HTMLCanvasElement | null>):
       const canvas = canvasRef.current!
       const context = canvas.getContext('webgpu') as GPUCanvasContext
       const format = navigator.gpu.getPreferredCanvasFormat()
-      context.configure({ device, format, alphaMode: 'premultiplied' })
 
+      context.configure({ device, format, alphaMode: 'premultiplied' })
       setState({ device, context, format, error: null, isReady: true })
-      console.log('[WebGPU] Device ready:', device.label || 'unnamed')
+      console.log('[WebGPU] Device ready')
     }
 
-    init().catch(err => {
-      setState(s => ({ ...s, error: String(err) }))
-    })
+    init().catch(err => setState(s => ({ ...s, error: String(err) })))
   }, [canvasRef])
 
   return state
