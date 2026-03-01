@@ -1,20 +1,24 @@
 import { useRef, useState, useEffect } from 'react'
 import GameCanvas from './components/GameCanvas/GameCanvas'
 import { useWebGPU } from './hooks/useWebGPU'
-import renderHelloTriangle from './engine/HelloTriangle'
+import GameEngine from './engine/GameEngine'
 import styles from './App.module.css'
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [pointerLocked, setPointerLocked] = useState(false)
   const { device, context, format, error, isReady } = useWebGPU(canvasRef)
-  const triangleStarted = useRef(false)
+  const engineStarted = useRef(false)
 
   useEffect(() => {
     if (!isReady || !device || !context || !format) return
-    if (triangleStarted.current) return
-    triangleStarted.current = true
-    renderHelloTriangle(device, context, format)
+    if (engineStarted.current) return
+    engineStarted.current = true
+
+    const engine = new GameEngine(device, context, format)
+    engine.init().then(() => engine.start())
+
+    return () => { engine.stop() }
   }, [isReady, device, context, format])
 
   return (
