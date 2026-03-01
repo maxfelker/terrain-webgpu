@@ -4,11 +4,14 @@ import createTerrainPipeline from './TerrainPipeline'
 import Renderer from './Renderer'
 import TextureManager from './TextureManager'
 import { extractFrustumPlanes } from './Frustum'
+import InputSystem from './InputSystem'
+import FPSCamera from './FPSCamera'
+import type { PlayerState } from './FPSCamera'
 import mat4 from './math/mat4'
 
-const CAMERA_EYE: [number, number, number] = [768, 320, 768]
-const CAMERA_CENTER: [number, number, number] = [256, 0, 256]
-const CAMERA_UP: [number, number, number] = [0, 1, 0]
+const FALLBACK_EYE: [number, number, number] = [768, 320, 768]
+const FALLBACK_CENTER: [number, number, number] = [256, 0, 256]
+const FALLBACK_UP: [number, number, number] = [0, 1, 0]
 const FOG_DENSITY = 0.000008
 
 export default class GameEngine {
@@ -21,6 +24,19 @@ export default class GameEngine {
   private renderer: Renderer | null = null
   private textureManager: TextureManager | null = null
   private rafId: number | null = null
+  private inputSystem: InputSystem | null = null
+  private fpsCamera: FPSCamera | null = null
+  private playerState: PlayerState | null = null
+  private lastTimestamp = 0
+  private frameCount = 0
+  private fps = 0
+  private pointerLocked = false
+  onHudUpdate: ((playerState: PlayerState | null, fps: number) => void) | null = null
+
+  private onPointerLockChange = (): void => {
+    const canvas = this.context.canvas as HTMLCanvasElement
+    this.pointerLocked = document.pointerLockElement === canvas
+  }
 
   constructor(device: GPUDevice, context: GPUCanvasContext, format: GPUTextureFormat) {
     this.device = device
@@ -31,6 +47,10 @@ export default class GameEngine {
   async init(): Promise<void> {
     this.wasmClient = new WasmClient()
     await this.wasmClient.ready()
+
+    this.wasmClient.onTick = (state: PlayerState) => {
+      this.playerState = state
+    }
 
     this.textureManager = new TextureManager(this.device)
 
@@ -45,9 +65,17 @@ export default class GameEngine {
     await this.chunkManager.init()
 
     this.renderer = new Renderer(this.device, this.context, this.format)
+
+    this.inputSystem = new InputSystem()
+    this.fpsCamera = new FPSCamera()
+
+    const canvas = this.context.canvas as HTMLCanvasElement
+    this.inputSystem.attach(canvas)
+    document.addEventListener('pointerlockchange', this.onPointerLockChange)
   }
 
   start(): void {
+    this.lastTimestamp = performance.now()
     this.rafId = requestAnimationFrame((t) => this.render(t))
   }
 
@@ -56,22 +84,50 @@ export default class GameEngine {
       cancelAnimationFrame(this.rafId)
       this.rafId = null
     }
+    this.inputSystem?.detach()
+    document.removeEventListener('pointerlockchange', this.onPointerLockChange)
+    if (document.pointerLockElement) document.exitPointerLock()
     this.wasmClient?.terminate()
   }
 
-  private render(_timestamp: number): void {
+  private render(timestamp: number): void {
     if (!this.renderer || !this.pipeline || !this.chunkManager || !this.textureManager) return
+
+    let dt = (timestamp - this.lastTimestamp) / 1000
+    if (dt > 0.1) dt = 0.1
+    this.lastTimestamp = timestamp
+
+    this.frameCount++
+    if (this.frameCount % 30 === 0) {
+      this.fps = Math.round(1 / dt)
+    }
 
     const canvas = this.context.canvas as HTMLCanvasElement
     const aspect = canvas.width / canvas.height
-    const proj = mat4.perspective(Math.PI / 4, aspect, 0.1, 10000)
-    const view = mat4.lookAt(CAMERA_EYE, CAMERA_CENTER, CAMERA_UP)
-    const viewProj = mat4.multiply(proj, view)
+    this.fpsCamera?.setAspect(aspect)
+
+    if (this.pointerLocked && this.wasmClient && this.inputSystem) {
+      const snap = this.inputSystem.flush()
+      this.wasmClient.tick(JSON.stringify(snap), dt)
+    }
+
+    let viewProj: Float32Array
+    let eyePos: [number, number, number]
+
+    if (this.playerState && this.fpsCamera) {
+      viewProj = this.fpsCamera.getViewProjMatrix(this.playerState)
+      eyePos = this.fpsCamera.getEyePosition(this.playerState)
+    } else {
+      const proj = mat4.perspective(Math.PI / 4, aspect, 0.1, 10000)
+      const view = mat4.lookAt(FALLBACK_EYE, FALLBACK_CENTER, FALLBACK_UP)
+      viewProj = mat4.multiply(proj, view)
+      eyePos = FALLBACK_EYE
+    }
 
     const planes = extractFrustumPlanes(viewProj)
     const visibleChunks = this.chunkManager.filterByFrustum(planes)
 
-    const cameraData = new Float32Array([CAMERA_EYE[0], CAMERA_EYE[1], CAMERA_EYE[2], 0])
+    const cameraData = new Float32Array([eyePos[0], eyePos[1], eyePos[2], 0])
     const fogData = new Float32Array([FOG_DENSITY, 0, 0, 0])
 
     for (const chunk of visibleChunks) {
@@ -93,6 +149,8 @@ export default class GameEngine {
       )
     }
     this.renderer.endFrame(encoder, pass)
+
+    this.onHudUpdate?.(this.playerState, this.fps)
 
     this.rafId = requestAnimationFrame((t) => this.render(t))
   }
