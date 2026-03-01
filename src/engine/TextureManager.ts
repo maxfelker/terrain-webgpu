@@ -5,7 +5,7 @@ export default class TextureManager {
   private rockTexture: GPUTexture
   private sampler: GPUSampler
   readonly bindGroupLayout: GPUBindGroupLayout
-  readonly bindGroup: GPUBindGroup
+  bindGroup: GPUBindGroup
 
   constructor(device: GPUDevice) {
     this.grassTexture = generateGrassTexture(device)
@@ -25,6 +25,37 @@ export default class TextureManager {
         { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } },
       ],
     })
+
+    this.bindGroup = device.createBindGroup({
+      layout: this.bindGroupLayout,
+      entries: [
+        { binding: 0, resource: this.sampler },
+        { binding: 1, resource: this.grassTexture.createView() },
+        { binding: 2, resource: this.rockTexture.createView() },
+      ],
+    })
+  }
+
+  updateTexture(device: GPUDevice, slot: 'grass' | 'rock', bitmap: ImageBitmap): void {
+    const newTex = device.createTexture({
+      size: [bitmap.width, bitmap.height, 1],
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+    })
+
+    device.queue.copyExternalImageToTexture(
+      { source: bitmap },
+      { texture: newTex },
+      [bitmap.width, bitmap.height],
+    )
+
+    if (slot === 'grass') {
+      this.grassTexture.destroy()
+      this.grassTexture = newTex
+    } else {
+      this.rockTexture.destroy()
+      this.rockTexture = newTex
+    }
 
     this.bindGroup = device.createBindGroup({
       layout: this.bindGroupLayout,

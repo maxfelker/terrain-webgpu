@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import GameCanvas from './components/GameCanvas/GameCanvas'
+import TextureUploader from './components/TextureUploader/TextureUploader'
 import { useWebGPU } from './hooks/useWebGPU'
 import GameEngine from './engine/GameEngine'
 import type { PlayerState } from './engine/FPSCamera'
@@ -7,6 +8,7 @@ import styles from './App.module.css'
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const engineRef = useRef<GameEngine | null>(null)
   const [pointerLocked, setPointerLocked] = useState(false)
   const [playerState, setPlayerState] = useState<PlayerState | null>(null)
   const [fps, setFps] = useState(0)
@@ -19,19 +21,24 @@ export default function App() {
     engineStarted.current = true
 
     const engine = new GameEngine(device, context, format)
+    engineRef.current = engine
     engine.onHudUpdate = (ps, f) => {
       setPlayerState(ps)
       setFps(f)
     }
     engine.init().then(() => engine.start())
 
-    return () => { engine.stop() }
+    return () => {
+      engine.stop()
+      engineRef.current = null
+    }
   }, [isReady, device, context, format])
 
   return (
     <>
       {error && <div className={styles.errorOverlay}>{error}</div>}
       <GameCanvas ref={canvasRef} onPointerLock={setPointerLocked} playerState={playerState} fps={fps} />
+      <TextureUploader onTextureLoad={(slot, bmp) => engineRef.current?.updateTexture(slot, bmp)} />
       <div className={styles.status}>
         {isReady ? '✓ WebGPU Ready' : 'Initializing WebGPU...'}
         {pointerLocked && ' | Click to unlock'}
