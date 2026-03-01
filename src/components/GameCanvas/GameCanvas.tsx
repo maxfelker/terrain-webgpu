@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import styles from './GameCanvas.module.css'
 import HUD from '../HUD/HUD'
+import SettingsPanel from '../Settings/Settings'
 import type { PlayerState } from '../../engine/FPSCamera'
 
 interface GameCanvasProps {
@@ -9,9 +10,12 @@ interface GameCanvasProps {
   onPointerLock?: (locked: boolean) => void
   playerState?: PlayerState | null
   fps?: number
+  onFogDensityChange?: (v: number) => void
+  onFovChange?: (v: number) => void
+  onMouseSensitivityChange?: (v: number) => void
 }
 
-export default function GameCanvas({ ref, onPointerLock, playerState = null, fps = 0 }: GameCanvasProps) {
+export default function GameCanvas({ ref, onPointerLock, playerState = null, fps = 0, onFogDensityChange, onFovChange, onMouseSensitivityChange }: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -48,6 +52,11 @@ export default function GameCanvas({ ref, onPointerLock, playerState = null, fps
     <div ref={containerRef} className={styles.wrapper} style={{ position: 'relative' }}>
       <canvas ref={ref} className={styles.canvas} role="presentation" />
       <HUD playerState={playerState} fps={fps} />
+      <SettingsPanel
+        onFogDensityChange={onFogDensityChange}
+        onFovChange={onFovChange}
+        onMouseSensitivityChange={onMouseSensitivityChange}
+      />
     </div>
   )
 }
