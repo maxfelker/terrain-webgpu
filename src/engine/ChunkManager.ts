@@ -1,6 +1,8 @@
 import WasmClient from './WasmClient'
 import type { ChunkCoord } from './worker/WasmBridge'
 import MeshBuilder from './MeshBuilder'
+import { testAABB } from './Frustum'
+import type { Plane } from './Frustum'
 
 export interface ChunkGPUData {
   coord: ChunkCoord
@@ -12,9 +14,9 @@ export interface ChunkGPUData {
 }
 
 const RESOLUTION = 129
-const CHUNK_SIZE = 512
-const HEIGHT_SCALE = 64
-const UNIFORM_BUFFER_SIZE = 96  // 64 (viewProj mat4) + 16 (worldOffset vec4) + 16 padding
+export const CHUNK_SIZE = 512
+export const HEIGHT_SCALE = 64
+const UNIFORM_BUFFER_SIZE = 128  // 64 (viewProj mat4) + 16 (worldOffset) + 16 (cameraPos) + 16 (fogParams) + 16 padding
 
 export default class ChunkManager {
   private device: GPUDevice
@@ -30,8 +32,12 @@ export default class ChunkManager {
 
   async init(): Promise<void> {
     await this.wasmClient.initWorld({})
-    const chunk = await this.generateChunk(0, 0)
-    this.activeChunks.push(chunk)
+    for (const cx of [-1, 0, 1]) {
+      for (const cz of [-1, 0, 1]) {
+        const chunk = await this.generateChunk(cx, cz)
+        this.activeChunks.push(chunk)
+      }
+    }
   }
 
   async generateChunk(cx: number, cz: number): Promise<ChunkGPUData> {
@@ -77,6 +83,18 @@ export default class ChunkManager {
       bindGroup,
       indexCount,
     }
+  }
+
+  filterByFrustum(planes: Plane[]): ChunkGPUData[] {
+    return this.activeChunks.filter((chunk) => {
+      const cx = chunk.coord.x
+      const cz = chunk.coord.z
+      return testAABB(
+        planes,
+        cx * CHUNK_SIZE,       -HEIGHT_SCALE, cz * CHUNK_SIZE,
+        (cx + 1) * CHUNK_SIZE,  HEIGHT_SCALE, (cz + 1) * CHUNK_SIZE,
+      )
+    })
   }
 
   getActiveChunks(): ChunkGPUData[] {
