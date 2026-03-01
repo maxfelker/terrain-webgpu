@@ -1,3 +1,3 @@
 module github.com/maxfelker/terrain-webgpu/wasm
 
-go 1.24
+go 1.25
