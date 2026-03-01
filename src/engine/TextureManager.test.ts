@@ -22,7 +22,7 @@ function makeFakeDevice(): { device: GPUDevice; calls: string[] } {
   const fakeDevice = {
     createTexture: (_desc: GPUTextureDescriptor) => {
       calls.push('createTexture')
-      return { createView: () => ({}) } as unknown as GPUTexture
+      return { createView: () => ({}), destroy: () => {} } as unknown as GPUTexture
     },
     createSampler: (_desc?: GPUSamplerDescriptor) => {
       calls.push('createSampler')
@@ -62,5 +62,64 @@ describe('TextureManager', () => {
     new TextureManager(device)
     expect(calls.filter(c => c === 'createTexture')).toHaveLength(2)
     expect(calls.filter(c => c === 'writeTexture')).toHaveLength(2)
+  })
+})
+
+function makeFakeDeviceWithExternal(): { device: GPUDevice; calls: string[] } {
+  const calls: string[] = []
+
+  const fakeDevice = {
+    createTexture: (_desc: GPUTextureDescriptor) => {
+      calls.push('createTexture')
+      return { createView: () => ({}), destroy: () => { calls.push('destroyTexture') } } as unknown as GPUTexture
+    },
+    createSampler: (_desc?: GPUSamplerDescriptor) => {
+      calls.push('createSampler')
+      return {} as GPUSampler
+    },
+    createBindGroupLayout: (desc: GPUBindGroupLayoutDescriptor) => {
+      calls.push('bindGroupLayout')
+      return { entries: desc.entries } as unknown as GPUBindGroupLayout
+    },
+    createBindGroup: (_desc: GPUBindGroupDescriptor) => {
+      calls.push('createBindGroup')
+      return {} as GPUBindGroup
+    },
+    queue: {
+      writeTexture: () => { calls.push('writeTexture') },
+      copyExternalImageToTexture: () => { calls.push('copyExternalImageToTexture') },
+    },
+  } as unknown as GPUDevice
+
+  return { device: fakeDevice, calls }
+}
+
+describe('TextureManager.updateTexture', () => {
+  it('replaces the bind group after updateTexture (grass slot)', () => {
+    const { device, calls } = makeFakeDeviceWithExternal()
+    const tm = new TextureManager(device)
+
+    const bindGroupCallsBefore = calls.filter(c => c === 'createBindGroup').length
+    const bitmap = { width: 64, height: 64 } as ImageBitmap
+
+    tm.updateTexture(device, 'grass', bitmap)
+
+    expect(calls.filter(c => c === 'createBindGroup').length).toBe(bindGroupCallsBefore + 1)
+    expect(calls).toContain('copyExternalImageToTexture')
+    expect(calls).toContain('destroyTexture')
+  })
+
+  it('replaces the bind group after updateTexture (rock slot)', () => {
+    const { device, calls } = makeFakeDeviceWithExternal()
+    const tm = new TextureManager(device)
+
+    const bindGroupCallsBefore = calls.filter(c => c === 'createBindGroup').length
+    const bitmap = { width: 128, height: 128 } as ImageBitmap
+
+    tm.updateTexture(device, 'rock', bitmap)
+
+    expect(calls.filter(c => c === 'createBindGroup').length).toBe(bindGroupCallsBefore + 1)
+    expect(calls).toContain('copyExternalImageToTexture')
+    expect(calls).toContain('destroyTexture')
   })
 })

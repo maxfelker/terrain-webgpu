@@ -82,6 +82,10 @@ export default class GameEngine {
     this.rafId = requestAnimationFrame((t) => this.render(t))
   }
 
+  updateTexture(slot: 'grass' | 'rock', bitmap: ImageBitmap): void {
+    this.textureManager?.updateTexture(this.device, slot, bitmap)
+  }
+
   stop(): void {
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId)
