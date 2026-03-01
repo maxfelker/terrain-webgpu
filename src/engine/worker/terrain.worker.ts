@@ -5,8 +5,8 @@ import loadWasm from './WasmLoader'
 
 let wasmReady = false
 
-function handleInit(): void {
-  loadWasm({ wasmExecUrl: '/wasm_exec.js', wasmBinaryUrl: '/terrain.wasm' })
+function handleInit(wasmBinaryUrl: string, wasmExecUrl: string): void {
+  loadWasm({ wasmExecUrl, wasmBinaryUrl })
     .then(() => {
       wasmReady = true
       console.log('[Worker] WASM Ready')
@@ -68,7 +68,7 @@ function handleMessage(event: MessageEvent): void {
   const { type } = event.data
 
   if (type === 'INIT') {
-    handleInit()
+    handleInit(event.data.wasmBinaryUrl ?? '/terrain.wasm', event.data.wasmExecUrl ?? '/wasm_exec.js')
     return
   }
 

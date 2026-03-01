@@ -32,7 +32,11 @@ export default class WasmClient {
         }
       }
       this.worker.addEventListener('message', handler)
-      this.worker.postMessage({ type: 'INIT' })
+      this.worker.postMessage({
+        type: 'INIT',
+        wasmBinaryUrl: `/terrain.wasm?v=${__WASM_HASH__}`,
+        wasmExecUrl: '/wasm_exec.js',
+      })
     })
   }
 
