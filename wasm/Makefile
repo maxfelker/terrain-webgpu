@@ -1,4 +1,4 @@
-.PHONY: wasm test clean
+.PHONY: wasm test test-short clean
 
 GOVERSION := $(shell go version | awk '{print $$3}')
 
@@ -7,7 +7,10 @@ wasm:
 	@echo "Built terrain.wasm with $(GOVERSION)"
 
 test:
-	go test ./...
+	go test ./... -v -count=1
+
+test-short:
+	go test ./... -short
 
 clean:
 	rm -f ../public/terrain.wasm
