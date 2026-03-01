@@ -76,6 +76,65 @@ func TestComputeNormals_Size(t *testing.T) {
 	}
 }
 
+func TestGenerateExtendedHeightmap_Size(t *testing.T) {
+	cfg := terrain.DefaultConfig()
+	ext := terrain.GenerateExtendedHeightmap(0, 0, cfg)
+	extRes := cfg.HeightmapResolution + 2 // 131
+	expected := extRes * extRes
+	if len(ext) != expected {
+		t.Errorf("expected extended heightmap size %d, got %d", expected, len(ext))
+	}
+}
+
+func TestGenerateExtendedHeightmap_InnerMatchesRegular(t *testing.T) {
+	cfg := terrain.DefaultConfig()
+	regular := terrain.GenerateHeightmap(0, 0, cfg)
+	ext := terrain.GenerateExtendedHeightmap(0, 0, cfg)
+
+	res := cfg.HeightmapResolution  // 129
+	extRes := res + 2               // 131
+
+	// Inner region of extended (rows 1..res, cols 1..res) should match regular
+	for row := range res {
+		for col := range res {
+			regularVal := regular[row*res+col]
+			extVal := ext[(row+1)*extRes+(col+1)]
+			diff := extVal - regularVal
+			if diff < 0 {
+				diff = -diff
+			}
+			if diff > 1e-6 {
+				t.Errorf("mismatch at (%d,%d): regular=%.6f ext=%.6f", row, col, regularVal, extVal)
+			}
+		}
+	}
+}
+
+func TestGenerateExtendedHeightmap_BorderMatchesNeighbor(t *testing.T) {
+	cfg := terrain.DefaultConfig()
+
+	// Left border of chunk (1,0) extended hm should match right column of chunk (0,0) regular hm
+	regularLeft := terrain.GenerateHeightmap(0, 0, cfg)
+	extRight := terrain.GenerateExtendedHeightmap(1, 0, cfg)
+
+	res := cfg.HeightmapResolution // 129
+	extRes := res + 2              // 131
+
+	for row := range res {
+		// Second-to-last col of regular chunk(0,0): col = res-2 (one spacing left of the shared boundary)
+		regularVal := regularLeft[row*res+(res-2)]
+		// Left border of extended chunk(1,0): col=0 in extended, sampled one spacing unit left of chunk(1,0) origin
+		extBorderVal := extRight[(row+1)*extRes+0]
+		diff := extBorderVal - regularVal
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff > 1e-6 {
+			t.Errorf("border mismatch at row %d: regularLeft secondToLastCol=%.6f extRight leftBorder=%.6f", row, regularVal, extBorderVal)
+		}
+	}
+}
+
 func TestComputeNormals_Normalized(t *testing.T) {
 	cfg := terrain.DefaultConfig()
 	cfg.HeightmapResolution = 9
