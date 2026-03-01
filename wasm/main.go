@@ -134,7 +134,8 @@ func goGenerateChunk(_ js.Value, args []js.Value) any {
 
 	cfg.Height = int(heightScale)
 	hm := terrain.GenerateHeightmap(cx, cz, cfg)
-	normals := terrain.ComputeNormals(hm, resolution, float64(chunkSize), heightScale)
+	extHm := terrain.GenerateExtendedHeightmap(cx, cz, cfg)
+	normals := terrain.ComputeNormalsFromExtended(extHm, resolution, float64(chunkSize), heightScale)
 
 	// Store heightmap so physics can sample terrain height for collision/spawning.
 	coord := world.ChunkCoord{X: cx, Z: cz}
