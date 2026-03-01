@@ -12,9 +12,9 @@ export interface ChunkGPUData {
 }
 
 const RESOLUTION = 129
-const CHUNK_SIZE = 512
-const HEIGHT_SCALE = 64
-const UNIFORM_BUFFER_SIZE = 96  // 64 (viewProj mat4) + 16 (worldOffset vec4) + 16 padding
+export const CHUNK_SIZE = 512
+export const HEIGHT_SCALE = 64
+const UNIFORM_BUFFER_SIZE = 128  // 64 (viewProj mat4) + 16 (worldOffset) + 16 (cameraPos) + 16 (fogParams) + 16 padding
 
 export default class ChunkManager {
   private device: GPUDevice
