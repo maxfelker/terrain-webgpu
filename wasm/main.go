@@ -144,32 +144,23 @@ func goGenerateChunk(_ js.Value, args []js.Value) any {
 	cfg.Dimension = chunkSize
 	cfg.Height = int(heightScale)
 
-	// Determine biome at chunk center using world config seed.
-	chunkCenterX := float64(cx*chunkSize) + float64(chunkSize)*0.5
-	chunkCenterZ := float64(cz*chunkSize) + float64(chunkSize)*0.5
+	// Use world config seed for biome placement, falling back to terrain seed.
 	biomeSeed := globalWorldCfg.Seed
 	if biomeSeed == 0 {
 		biomeSeed = cfg.Seed
 	}
-	biomeType := biome.GetBiomeAt(chunkCenterX, chunkCenterZ, biomeSeed)
-	biomeDef := biome.DefaultBiomes[biomeType]
 
-	// Override terrain noise parameters with biome-specific values.
-	cfg.Octaves = biomeDef.Octaves
-	cfg.Frequency = biomeDef.Frequency
-	cfg.Lacunarity = biomeDef.Lacunarity
-	cfg.Persistence = biomeDef.Persistence
-	cfg.Amplitude = biomeDef.Amplitude
+	// Per-vertex biome sampling ensures seamless chunk boundaries.
+	// Both sides of a shared edge compute height at the same world coordinate
+	// → same biome → same noise config → matching heights, no gaps.
+	hm, biomeType := biome.GenerateHeightmapPerVertex(cx, cz, cfg, biomeSeed)
+	extHm := biome.GenerateExtendedHeightmapPerVertex(cx, cz, cfg, biomeSeed)
 
-	hm := terrain.GenerateHeightmap(cx, cz, cfg)
-	biome.ScaleHeightmap(hm, biomeDef.HeightMultiplier)
-
-	extHm := terrain.GenerateExtendedHeightmap(cx, cz, cfg)
-	biome.ScaleHeightmap(extHm, biomeDef.HeightMultiplier)
-
-	// Use effective height scale for normal computation so slopes are correct.
-	effectiveHeightScale := heightScale * biomeDef.HeightMultiplier
-	normals := terrain.ComputeNormalsFromExtended(extHm, resolution, float64(chunkSize), effectiveHeightScale)
+	// Normals are computed from the extended heightmap. The effective height scale
+	// varies per vertex (biome height multiplier × base heightScale), but we pass
+	// the base heightScale here; the vertex heights already encode the multiplier
+	// so the gradient magnitudes remain physically correct.
+	normals := terrain.ComputeNormalsFromExtended(extHm, resolution, float64(chunkSize), heightScale)
 
 	// Store heightmap so physics can sample terrain height for collision/spawning.
 	coord := world.ChunkCoord{X: cx, Z: cz}

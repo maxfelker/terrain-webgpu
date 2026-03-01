@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/maxfelker/terrain-webgpu/wasm/biome"
+	"github.com/maxfelker/terrain-webgpu/wasm/terrain"
 )
 
 func TestGetBiomeAt_Deterministic(t *testing.T) {
@@ -148,4 +149,39 @@ func abs32(v float32) float32 {
 		return -v
 	}
 	return v
+}
+
+func TestGenerateHeightmapPerVertex_SeamContinuity(t *testing.T) {
+cfg := terrain.DefaultConfig()
+cfg.HeightmapResolution = 17
+
+// Generate two adjacent chunks
+hm00, _ := biome.GenerateHeightmapPerVertex(0, 0, cfg, 42)
+hm10, _ := biome.GenerateHeightmapPerVertex(1, 0, cfg, 42)
+
+res := cfg.HeightmapResolution
+// Right edge of chunk(0,0) must match left edge of chunk(1,0)
+for row := range res {
+rightEdge := hm00[row*res+(res-1)]
+leftEdge := hm10[row*res+0]
+diff := rightEdge - leftEdge
+if diff < 0 {
+diff = -diff
+}
+if diff > 1e-4 {
+t.Errorf("seam discontinuity at row %d: right=%.6f left=%.6f diff=%.6f",
+row, rightEdge, leftEdge, diff)
+}
+}
+}
+
+func TestGenerateExtendedHeightmapPerVertex_Size(t *testing.T) {
+cfg := terrain.DefaultConfig()
+cfg.HeightmapResolution = 17
+ext := biome.GenerateExtendedHeightmapPerVertex(0, 0, cfg, 42)
+extRes := cfg.HeightmapResolution + 2
+want := extRes * extRes
+if len(ext) != want {
+t.Errorf("expected extended size %d, got %d", want, len(ext))
+}
 }
