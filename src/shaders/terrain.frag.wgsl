@@ -3,12 +3,10 @@ struct Uniforms {
   worldOffset: vec4<f32>,
   cameraPos:   vec4<f32>,
   fogParams:   vec4<f32>,
+  _pad:        vec4<f32>,
+  biomeData:   vec4<f32>,
 }
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
-
-@group(1) @binding(0) var terrainSampler: sampler;
-@group(1) @binding(1) var grassTex: texture_2d<f32>;
-@group(1) @binding(2) var rockTex:  texture_2d<f32>;
 
 struct FragInput {
   @location(0) normal:   vec3<f32>,
@@ -16,14 +14,19 @@ struct FragInput {
   @location(2) worldPos: vec3<f32>,
 }
 
+fn getBiomeColor(id: f32) -> vec3f {
+    let biome = i32(round(id));
+    if (biome == 1) { return vec3f(0.86, 0.76, 0.42); } // Desert
+    if (biome == 2) { return vec3f(0.55, 0.50, 0.45); } // Mountains
+    if (biome == 3) { return vec3f(0.42, 0.60, 0.24); } // Valley
+    if (biome == 4) { return vec3f(0.22, 0.28, 0.14); } // Swamp
+    if (biome == 5) { return vec3f(0.20, 0.40, 0.12); } // Forest
+    return vec3f(0.34, 0.52, 0.18); // Grassland (default)
+}
+
 @fragment
 fn fs_main(f: FragInput) -> @location(0) vec4<f32> {
-  let grassColor = textureSample(grassTex, terrainSampler, f.uv * 8.0).rgb;
-  let rockColor  = textureSample(rockTex,  terrainSampler, f.uv * 6.0).rgb;
-
-  let slope  = clamp(f.normal.y, 0.0, 1.0);
-  let blend  = smoothstep(0.55, 0.80, slope);
-  let albedo = mix(rockColor, grassColor, blend);
+  let albedo = getBiomeColor(uniforms.biomeData.x);
 
   let lightDir = normalize(vec3<f32>(0.5, 1.2, 0.4));
   let diffuse  = max(dot(normalize(f.normal), lightDir), 0.0);

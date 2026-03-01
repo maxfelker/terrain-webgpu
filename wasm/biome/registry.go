@@ -30,7 +30,7 @@ var DefaultBiomes = map[BiomeType]BiomeDefinition{
 		Lacunarity:       2.2,
 		Persistence:      0.60,
 		Amplitude:        1.0,
-		HeightMultiplier: 3.0,
+		HeightMultiplier: 10.0,
 	},
 	Valley: {
 		Name:             "Valley",
