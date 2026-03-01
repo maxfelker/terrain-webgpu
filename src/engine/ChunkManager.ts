@@ -1,6 +1,8 @@
 import WasmClient from './WasmClient'
 import type { ChunkCoord } from './worker/WasmBridge'
 import MeshBuilder from './MeshBuilder'
+import { testAABB } from './Frustum'
+import type { Plane } from './Frustum'
 
 export interface ChunkGPUData {
   coord: ChunkCoord
@@ -30,8 +32,12 @@ export default class ChunkManager {
 
   async init(): Promise<void> {
     await this.wasmClient.initWorld({})
-    const chunk = await this.generateChunk(0, 0)
-    this.activeChunks.push(chunk)
+    for (const cx of [-1, 0, 1]) {
+      for (const cz of [-1, 0, 1]) {
+        const chunk = await this.generateChunk(cx, cz)
+        this.activeChunks.push(chunk)
+      }
+    }
   }
 
   async generateChunk(cx: number, cz: number): Promise<ChunkGPUData> {
@@ -77,6 +83,18 @@ export default class ChunkManager {
       bindGroup,
       indexCount,
     }
+  }
+
+  filterByFrustum(planes: Plane[]): ChunkGPUData[] {
+    return this.activeChunks.filter((chunk) => {
+      const cx = chunk.coord.x
+      const cz = chunk.coord.z
+      return testAABB(
+        planes,
+        cx * CHUNK_SIZE,       -HEIGHT_SCALE, cz * CHUNK_SIZE,
+        (cx + 1) * CHUNK_SIZE,  HEIGHT_SCALE, (cz + 1) * CHUNK_SIZE,
+      )
+    })
   }
 
   getActiveChunks(): ChunkGPUData[] {
