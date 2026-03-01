@@ -7,6 +7,7 @@ const defaultPlayer: PlayerState = {
   yaw: 0, pitch: 0,
   velocityY: 0, grounded: true,
   sprinting: false,
+  coyoteFrames: 0, jumpProgress: 0,
 }
 
 describe('FPSCamera', () => {
