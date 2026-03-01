@@ -1,8 +1,11 @@
 // Main-thread async wrapper around the terrain WASM worker.
+import type { PlayerState } from './FPSCamera'
+
 export default class WasmClient {
   private worker: Worker
   private nextId = 0
   private pending = new Map<number, (data: unknown) => void>()
+  onTick: ((playerState: PlayerState) => void) | null = null
 
   constructor() {
     this.worker = new Worker(
@@ -17,6 +20,9 @@ export default class WasmClient {
       const resolve = this.pending.get(id)!
       this.pending.delete(id)
       resolve(error ? Promise.reject(new Error(error)) : result)
+    }
+    if (type === 'TICK_RESULT') {
+      this.onTick?.(e.data.playerState as PlayerState)
     }
   }
 
@@ -68,5 +74,9 @@ export default class WasmClient {
 
   terminate(): void {
     this.worker.terminate()
+  }
+
+  tick(inputJSON: string, dt: number): void {
+    this.worker.postMessage({ type: 'TICK', inputJSON, dt })
   }
 }

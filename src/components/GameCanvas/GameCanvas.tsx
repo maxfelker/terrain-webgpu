@@ -1,13 +1,17 @@
 import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import styles from './GameCanvas.module.css'
+import HUD from '../HUD/HUD'
+import type { PlayerState } from '../../engine/FPSCamera'
 
 interface GameCanvasProps {
   ref: RefObject<HTMLCanvasElement | null>
   onPointerLock?: (locked: boolean) => void
+  playerState?: PlayerState | null
+  fps?: number
 }
 
-export default function GameCanvas({ ref, onPointerLock }: GameCanvasProps) {
+export default function GameCanvas({ ref, onPointerLock, playerState = null, fps = 0 }: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -41,8 +45,9 @@ export default function GameCanvas({ ref, onPointerLock }: GameCanvasProps) {
   }, [ref, onPointerLock])
 
   return (
-    <div ref={containerRef} className={styles.wrapper}>
+    <div ref={containerRef} className={styles.wrapper} style={{ position: 'relative' }}>
       <canvas ref={ref} className={styles.canvas} role="presentation" />
+      <HUD playerState={playerState} fps={fps} />
     </div>
   )
 }

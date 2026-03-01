@@ -5,8 +5,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"syscall/js"
 
+	"github.com/maxfelker/terrain-webgpu/wasm/physics"
 	"github.com/maxfelker/terrain-webgpu/wasm/terrain"
 	"github.com/maxfelker/terrain-webgpu/wasm/world"
 )
@@ -14,6 +16,7 @@ import (
 var (
 	globalWorld      *world.World
 	globalHeightmaps = make(map[world.ChunkCoord][]float32)
+	globalPlayer     *physics.PlayerState
 )
 
 func main() {
@@ -26,6 +29,7 @@ func main() {
 	js.Global().Set("go_computeNormals", js.FuncOf(goComputeNormals))
 	js.Global().Set("go_getChunkHeight", js.FuncOf(goGetChunkHeight))
 	js.Global().Set("go_generateChunk", js.FuncOf(goGenerateChunk))
+	js.Global().Set("go_updatePlayer", js.FuncOf(goUpdatePlayer))
 
 	fmt.Println("[WASM] exports registered, engine ready")
 	select {}
@@ -128,8 +132,16 @@ func goGenerateChunk(_ js.Value, args []js.Value) any {
 	cfg.HeightmapResolution = resolution
 	cfg.Dimension = chunkSize
 
+	cfg.Height = int(heightScale)
 	hm := terrain.GenerateHeightmap(cx, cz, cfg)
 	normals := terrain.ComputeNormals(hm, resolution, float64(chunkSize), heightScale)
+
+	// Store heightmap so physics can sample terrain height for collision/spawning.
+	coord := world.ChunkCoord{X: cx, Z: cz}
+	globalHeightmaps[coord] = hm
+	if globalWorld != nil {
+		globalWorld.SetHeight(int(heightScale))
+	}
 
 	// Return as a single flat Float32Array: [heightmap..., normals...]
 	combined := make([]float32, len(hm)+len(normals))
@@ -150,3 +162,49 @@ func jsError(err error) js.Value {
 	jsErr := js.Global().Get("Error").New(err.Error())
 	return jsErr
 }
+
+func goUpdatePlayer(_ js.Value, args []js.Value) any {
+	if globalPlayer == nil {
+		h := 0.0
+		if globalWorld != nil {
+			h = globalWorld.SampleHeight(256.0, 256.0, globalHeightmaps)
+		}
+		globalPlayer = &physics.PlayerState{
+			X:       256.0,
+			Y:       h + physics.CapsuleHalfHeight + physics.CapsuleRadius + 0.5,
+			Z:       256.0,
+			Stamina: physics.MaxStamina,
+		}
+	}
+
+	if len(args) < 2 {
+		return jsError(fmt.Errorf("go_updatePlayer requires (inputJSON, dt)"))
+	}
+
+	var input physics.InputState
+	if err := json.Unmarshal([]byte(args[0].String()), &input); err != nil {
+		return jsError(err)
+	}
+	dt := args[1].Float()
+	if dt > 0.1 {
+		dt = 0.1
+	}
+
+	heightAt := func(x, z float64) float64 {
+		if globalWorld == nil {
+			return 0
+		}
+		return globalWorld.SampleHeight(x, z, globalHeightmaps)
+	}
+
+	physics.Update(globalPlayer, input, dt, heightAt)
+
+	out, err := json.Marshal(globalPlayer)
+	if err != nil {
+		return jsError(err)
+	}
+	return string(out)
+}
+
+// ensure math import is used
+var _ = math.Floor

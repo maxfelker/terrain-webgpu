@@ -64,6 +64,11 @@ function handleCall(event: MessageEvent): void {
   }
 }
 
+function handleTick(data: { inputJSON: string; dt: number }): void {
+  const playerStateJSON = go_updatePlayer(data.inputJSON, data.dt) as string
+  self.postMessage({ type: 'TICK_RESULT', playerState: JSON.parse(playerStateJSON) })
+}
+
 function handleMessage(event: MessageEvent): void {
   const { type } = event.data
 
@@ -80,6 +85,7 @@ function handleMessage(event: MessageEvent): void {
   if (type === 'PING') handlePing()
   if (type === 'WORLD_UPDATE') handleWorldUpdate(event.data)
   if (type === 'CALL') handleCall(event)
+  if (type === 'TICK') handleTick(event.data)
 }
 
 self.onmessage = handleMessage
