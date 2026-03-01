@@ -1,0 +1,35 @@
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: white;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  text-shadow: 0 0 3px black;
+}
+
+.info {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  line-height: 1.6;
+  text-shadow: 1px 1px 2px black;
+}
+
+.hint {
+  position: absolute;
+  bottom: 24px;
+  width: 100%;
+  text-align: center;
+  text-shadow: 1px 1px 2px black;
+  opacity: 0.7;
+  font-size: 12px;
+}
