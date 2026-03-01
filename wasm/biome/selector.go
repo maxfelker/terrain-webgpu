@@ -14,6 +14,14 @@ const (
 // Uses two low-frequency noise maps (temperature, humidity) with domain warping
 // to create organic, curved biome boundaries.
 func GetBiomeAt(worldX, worldZ float64, seed int) BiomeType {
+	t, h := GetBiomeParams(worldX, worldZ, seed)
+	return ClassifyBiome(t, h)
+}
+
+// GetBiomeParams returns the raw temperature [0,1] and humidity [0,1] noise
+// values at a world position after applying domain warping. These continuous
+// values are used for smooth biome blending.
+func GetBiomeParams(worldX, worldZ float64, seed int) (temperature, humidity float64) {
 	// Domain warping: shift sample coordinates to create non-linear biome boundaries.
 	wx := noise.FBm(worldX*warpNoiseScale, worldZ*warpNoiseScale, seed+1001, 3, warpNoiseScale, 2.0, 0.5)
 	wz := noise.FBm((worldX+1000)*warpNoiseScale, (worldZ+1000)*warpNoiseScale, seed+1001, 3, warpNoiseScale, 2.0, 0.5)
@@ -22,13 +30,12 @@ func GetBiomeAt(worldX, worldZ float64, seed int) BiomeType {
 
 	// Temperature noise — seed offset to differ from terrain and humidity noise.
 	tempRaw := noise.FBm(sx*biomeNoiseScale, sz*biomeNoiseScale, seed+1000, 3, biomeNoiseScale, 2.0, 0.5)
-	temperature := (tempRaw + 1.0) * 0.5
+	temperature = (tempRaw + 1.0) * 0.5
 
 	// Humidity noise — positionally offset to de-correlate from temperature.
 	humidRaw := noise.FBm((sx+5000)*biomeNoiseScale, (sz+5000)*biomeNoiseScale, seed+2000, 3, biomeNoiseScale, 2.0, 0.5)
-	humidity := (humidRaw + 1.0) * 0.5
-
-	return ClassifyBiome(temperature, humidity)
+	humidity = (humidRaw + 1.0) * 0.5
+	return
 }
 
 // ClassifyBiome maps temperature [0,1] and humidity [0,1] to a BiomeType
