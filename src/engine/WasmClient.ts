@@ -2,8 +2,8 @@
 import type { PlayerState } from './FPSCamera'
 
 export interface WorldUpdate {
-  chunksToAdd: Array<{ coord: { X: number; Z: number } }>
-  chunksToRemove: Array<{ X: number; Z: number }>
+  chunksToAdd: Array<{ coord: { X: number; Z: number } }> | null
+  chunksToRemove: Array<{ X: number; Z: number }> | null
 }
 
 export default class WasmClient {

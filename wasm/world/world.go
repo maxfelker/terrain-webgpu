@@ -44,7 +44,7 @@ func (w *World) Update(playerX, playerZ float64) WorldUpdate {
 	playerChunkZ := int(math.Floor(playerZ / chunkSize))
 
 	radius := int(math.Ceil(RenderRadius / chunkSize))
-	var toAdd []ChunkGenResult
+	toAdd := make([]ChunkGenResult, 0)
 
 	for dz := -radius; dz <= radius; dz++ {
 		for dx := -radius; dx <= radius; dx++ {
@@ -80,7 +80,7 @@ func (w *World) Update(playerX, playerZ float64) WorldUpdate {
 	}
 
 	// Evict chunks beyond distance threshold
-	var toRemove []ChunkCoord
+	toRemove := make([]ChunkCoord, 0)
 	for _, coord := range w.registry.ActiveCoords() {
 		worldDX := float64(coord.X)*chunkSize - playerX
 		worldDZ := float64(coord.Z)*chunkSize - playerZ

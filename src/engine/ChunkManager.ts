@@ -42,11 +42,11 @@ export default class ChunkManager {
   async streamUpdate(playerX: number, playerZ: number): Promise<void> {
     const update = await this.wasmClient.worldUpdate(playerX, playerZ)
 
-    for (const coord of update.chunksToRemove) {
+    for (const coord of update.chunksToRemove ?? []) {
       this.removeChunk(coord.X, coord.Z)
     }
 
-    for (const chunkRef of update.chunksToAdd) {
+    for (const chunkRef of update.chunksToAdd ?? []) {
       const { X: cx, Z: cz } = chunkRef.coord
       if (this.activeChunks.some(c => c.coord.x === cx && c.coord.z === cz)) continue
       const chunk = await this.generateChunk(cx, cz)
