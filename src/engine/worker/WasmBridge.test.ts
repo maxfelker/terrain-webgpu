@@ -5,7 +5,7 @@ beforeEach(() => {
   vi.stubGlobal('go_ping', vi.fn().mockReturnValue('pong'))
   vi.stubGlobal('go_initWorld', vi.fn())
   vi.stubGlobal('go_worldUpdate', vi.fn().mockReturnValue('{"chunksToAdd":[],"chunksToRemove":[]}'))
-  vi.stubGlobal('go_updatePlayer', vi.fn().mockReturnValue('{"position":[0,0,0],"velocity":[0,0,0],"yaw":0,"pitch":0,"isGrounded":false,"isSprinting":false,"stamina":15}'))
+  vi.stubGlobal('go_updatePlayer', vi.fn().mockReturnValue('{"position":[0,0,0],"velocity":[0,0,0],"yaw":0,"pitch":0,"isGrounded":false,"isSprinting":false}'))
   vi.stubGlobal('go_getChunkHeight', vi.fn().mockReturnValue(42.5))
   vi.stubGlobal('go_generateHeightmap', vi.fn().mockReturnValue(new Float32Array(17 * 17)))
   vi.stubGlobal('go_computeNormals', vi.fn().mockReturnValue(new Float32Array(17 * 17 * 3)))
