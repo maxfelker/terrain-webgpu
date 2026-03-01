@@ -7,7 +7,6 @@ export default class WasmClient {
   constructor() {
     this.worker = new Worker(
       new URL('./worker/terrain.worker.ts', import.meta.url),
-      { type: 'module' },
     )
     this.worker.onmessage = (e: MessageEvent) => this.handleMessage(e)
   }
