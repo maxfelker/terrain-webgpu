@@ -8,6 +8,7 @@ import (
 	"math"
 	"syscall/js"
 
+	"github.com/maxfelker/terrain-webgpu/wasm/biome"
 	"github.com/maxfelker/terrain-webgpu/wasm/physics"
 	"github.com/maxfelker/terrain-webgpu/wasm/terrain"
 	"github.com/maxfelker/terrain-webgpu/wasm/world"
@@ -17,6 +18,7 @@ var (
 	globalWorld      *world.World
 	globalHeightmaps = make(map[world.ChunkCoord][]float32)
 	globalPlayer     *physics.PlayerState
+	globalWorldCfg   = biome.DefaultWorldConfig()
 )
 
 func main() {
@@ -30,6 +32,7 @@ func main() {
 	js.Global().Set("go_getChunkHeight", js.FuncOf(goGetChunkHeight))
 	js.Global().Set("go_generateChunk", js.FuncOf(goGenerateChunk))
 	js.Global().Set("go_updatePlayer", js.FuncOf(goUpdatePlayer))
+	js.Global().Set("go_loadWorldConfig", js.FuncOf(goLoadWorldConfig))
 
 	fmt.Println("[WASM] exports registered, engine ready")
 	select {}
@@ -37,6 +40,16 @@ func main() {
 
 func goPing(_ js.Value, _ []js.Value) any {
 	return "pong"
+}
+
+func goLoadWorldConfig(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return js.Null()
+	}
+	if err := json.Unmarshal([]byte(args[0].String()), &globalWorldCfg); err != nil {
+		return jsError(err)
+	}
+	return js.Null()
 }
 
 func goInitWorld(_ js.Value, args []js.Value) any {
@@ -111,8 +124,8 @@ func goGetChunkHeight(_ js.Value, args []js.Value) any {
 // produce empty arrays due to syscall/js value lifecycle behaviour.
 //
 // Args: configJSON string, chunkX int, chunkZ int, resolution int, chunkSize int, heightScale float64
-// Returns: flat Float32Array [heightmap(res×res)..., normals(res×res×3)...]
-// TypeScript splits via: hm = buf.subarray(0, res*res), normals = buf.subarray(res*res)
+// Returns: flat Float32Array [heightmap(res×res)..., normals(res×res×3)..., biomeId(1)]
+// TypeScript splits via: hm = buf.subarray(0, res*res), normals = buf.subarray(res*res, res*res + res*res*3), biomeId = buf[res*res + res*res*3]
 func goGenerateChunk(_ js.Value, args []js.Value) any {
 	cfg := terrain.DefaultConfig()
 	cfgStr := args[0].String()
@@ -129,11 +142,34 @@ func goGenerateChunk(_ js.Value, args []js.Value) any {
 
 	cfg.HeightmapResolution = resolution
 	cfg.Dimension = chunkSize
-
 	cfg.Height = int(heightScale)
+
+	// Determine biome at chunk center using world config seed.
+	chunkCenterX := float64(cx*chunkSize) + float64(chunkSize)*0.5
+	chunkCenterZ := float64(cz*chunkSize) + float64(chunkSize)*0.5
+	biomeSeed := globalWorldCfg.Seed
+	if biomeSeed == 0 {
+		biomeSeed = cfg.Seed
+	}
+	biomeType := biome.GetBiomeAt(chunkCenterX, chunkCenterZ, biomeSeed)
+	biomeDef := biome.DefaultBiomes[biomeType]
+
+	// Override terrain noise parameters with biome-specific values.
+	cfg.Octaves = biomeDef.Octaves
+	cfg.Frequency = biomeDef.Frequency
+	cfg.Lacunarity = biomeDef.Lacunarity
+	cfg.Persistence = biomeDef.Persistence
+	cfg.Amplitude = biomeDef.Amplitude
+
 	hm := terrain.GenerateHeightmap(cx, cz, cfg)
+	biome.ScaleHeightmap(hm, biomeDef.HeightMultiplier)
+
 	extHm := terrain.GenerateExtendedHeightmap(cx, cz, cfg)
-	normals := terrain.ComputeNormalsFromExtended(extHm, resolution, float64(chunkSize), heightScale)
+	biome.ScaleHeightmap(extHm, biomeDef.HeightMultiplier)
+
+	// Use effective height scale for normal computation so slopes are correct.
+	effectiveHeightScale := heightScale * biomeDef.HeightMultiplier
+	normals := terrain.ComputeNormalsFromExtended(extHm, resolution, float64(chunkSize), effectiveHeightScale)
 
 	// Store heightmap so physics can sample terrain height for collision/spawning.
 	coord := world.ChunkCoord{X: cx, Z: cz}
@@ -142,10 +178,11 @@ func goGenerateChunk(_ js.Value, args []js.Value) any {
 		globalWorld.SetHeight(int(heightScale))
 	}
 
-	// Return as a single flat Float32Array: [heightmap..., normals...]
-	combined := make([]float32, len(hm)+len(normals))
+	// Return as a single flat Float32Array: [heightmap..., normals..., biomeId]
+	combined := make([]float32, len(hm)+len(normals)+1)
 	copy(combined, hm)
 	copy(combined[len(hm):], normals)
+	combined[len(hm)+len(normals)] = float32(biomeType)
 	return float32SliceToJS(combined)
 }
 

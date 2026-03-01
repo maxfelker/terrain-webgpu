@@ -11,6 +11,7 @@ export interface ChunkGPUData {
   uniformBuffer: GPUBuffer
   bindGroup: GPUBindGroup
   indexCount: number
+  biomeId: number
 }
 
 const RESOLUTION = 129
@@ -70,7 +71,7 @@ export default class ChunkManager {
   }
 
   async generateChunk(cx: number, cz: number): Promise<ChunkGPUData> {
-    const { heightmap, normals } = await this.wasmClient.generateChunk(
+    const { heightmap, normals, biomeId } = await this.wasmClient.generateChunk(
       {}, cx, cz, RESOLUTION, CHUNK_SIZE, HEIGHT_SCALE,
     )
 
@@ -111,6 +112,7 @@ export default class ChunkManager {
       uniformBuffer,
       bindGroup,
       indexCount,
+      biomeId: biomeId ?? 0,
     }
   }
 
