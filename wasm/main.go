@@ -170,10 +170,9 @@ func goUpdatePlayer(_ js.Value, args []js.Value) any {
 			h = globalWorld.SampleHeight(256.0, 256.0, globalHeightmaps)
 		}
 		globalPlayer = &physics.PlayerState{
-			X:       256.0,
-			Y:       h + physics.CapsuleHalfHeight + physics.CapsuleRadius + 0.5,
-			Z:       256.0,
-			Stamina: physics.MaxStamina,
+			X: 256.0,
+			Y: h + physics.CapsuleHalfHeight + physics.CapsuleRadius + 0.5,
+			Z: 256.0,
 		}
 	}
 
