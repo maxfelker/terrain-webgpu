@@ -30,6 +30,15 @@ declare global {
     chunkSize: number,
     heightScale: number,
   ): Float32Array
+  /** Combined heightmap+normals generation in pure Go — returns flat [hm..., normals...] */
+  function go_generateChunk(
+    configJSON: string,
+    chunkX: number,
+    chunkZ: number,
+    resolution: number,
+    chunkSize: number,
+    heightScale: number,
+  ): Float32Array
 }
 
 export default class WasmBridge {

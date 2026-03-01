@@ -16,6 +16,8 @@ declare class Go {
 export default async function loadWasm(options: WasmLoaderOptions): Promise<void> {
   const { wasmExecUrl, wasmBinaryUrl } = options
 
+  // Classic workers (IIFE format, no type:'module') support importScripts.
+  // Vite bundles this worker as IIFE so importScripts is available at runtime.
   importScripts(wasmExecUrl)
 
   const go = new Go()
