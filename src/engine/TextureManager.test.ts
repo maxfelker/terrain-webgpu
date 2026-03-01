@@ -124,35 +124,6 @@ describe('TextureManager', () => {
   })
 })
 
-function makeFakeDeviceWithExternal(): { device: GPUDevice; calls: string[] } {
-  const calls: string[] = []
-
-  const fakeDevice = {
-    createTexture: (_desc: GPUTextureDescriptor) => {
-      calls.push('createTexture')
-      return { createView: () => ({}), destroy: () => { calls.push('destroyTexture') } } as unknown as GPUTexture
-    },
-    createSampler: (_desc?: GPUSamplerDescriptor) => {
-      calls.push('createSampler')
-      return {} as GPUSampler
-    },
-    createBindGroupLayout: (desc: GPUBindGroupLayoutDescriptor) => {
-      calls.push('bindGroupLayout')
-      return { entries: desc.entries } as unknown as GPUBindGroupLayout
-    },
-    createBindGroup: (_desc: GPUBindGroupDescriptor) => {
-      calls.push('createBindGroup')
-      return {} as GPUBindGroup
-    },
-    queue: {
-      writeTexture: () => { calls.push('writeTexture') },
-      copyExternalImageToTexture: () => { calls.push('copyExternalImageToTexture') },
-    },
-  } as unknown as GPUDevice
-
-  return { device: fakeDevice, calls }
-}
-
 describe('TextureManager.updateTexture', () => {
   it('replaces the bind group after updateTexture (grass slot)', () => {
     const { device, calls } = makeFakeDeviceWithExternal()
