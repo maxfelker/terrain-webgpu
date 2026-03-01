@@ -4,19 +4,24 @@ import terrainFrag from '../shaders/terrain.frag.wgsl?raw'
 export interface TerrainPipeline {
   pipeline: GPURenderPipeline
   bindGroupLayout: GPUBindGroupLayout
+  textureBindGroupLayout: GPUBindGroupLayout
 }
 
-function createTerrainPipeline(device: GPUDevice, format: GPUTextureFormat): TerrainPipeline {
+function createTerrainPipeline(
+  device: GPUDevice,
+  format: GPUTextureFormat,
+  textureBindGroupLayout: GPUBindGroupLayout,
+): TerrainPipeline {
   const bindGroupLayout = device.createBindGroupLayout({
     entries: [{
       binding: 0,
-      visibility: GPUShaderStage.VERTEX,
+      visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
       buffer: { type: 'uniform' },
     }],
   })
 
   const pipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: [bindGroupLayout],
+    bindGroupLayouts: [bindGroupLayout, textureBindGroupLayout],
   })
 
   const vertModule = device.createShaderModule({ code: terrainVert })
@@ -49,7 +54,7 @@ function createTerrainPipeline(device: GPUDevice, format: GPUTextureFormat): Ter
     },
   })
 
-  return { pipeline, bindGroupLayout }
+  return { pipeline, bindGroupLayout, textureBindGroupLayout }
 }
 
 export default createTerrainPipeline

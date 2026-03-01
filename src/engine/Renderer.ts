@@ -29,7 +29,7 @@ export default class Renderer {
     const pass = encoder.beginRenderPass({
       colorAttachments: [{
         view: this.context.getCurrentTexture().createView(),
-        clearValue: { r: 0.4, g: 0.7, b: 0.9, a: 1.0 },
+        clearValue: { r: 0.53, g: 0.81, b: 0.98, a: 1.0 },
         loadOp: 'clear',
         storeOp: 'store',
       }],
@@ -47,12 +47,14 @@ export default class Renderer {
     pass: GPURenderPassEncoder,
     pipeline: GPURenderPipeline,
     uniformBindGroup: GPUBindGroup,
+    textureBindGroup: GPUBindGroup,
     vertexBuffer: GPUBuffer,
     indexBuffer: GPUBuffer,
     indexCount: number,
   ): void {
     pass.setPipeline(pipeline)
     pass.setBindGroup(0, uniformBindGroup)
+    pass.setBindGroup(1, textureBindGroup)
     pass.setVertexBuffer(0, vertexBuffer)
     pass.setIndexBuffer(indexBuffer, 'uint32')
     pass.drawIndexed(indexCount)
