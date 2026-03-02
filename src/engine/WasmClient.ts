@@ -86,7 +86,19 @@ export default class WasmClient {
     heightScale: number,
   ): Promise<{ heightmap: Float32Array; normals: Float32Array; biomeId: number }> {
     if (this.pool) {
-      return this.pool.generateChunk(JSON.stringify(config), chunkX, chunkZ, resolution, chunkSize, heightScale)
+      const result = await this.pool.generateChunk(
+        JSON.stringify(config), chunkX, chunkZ, resolution, chunkSize, heightScale,
+      )
+      // Register heightmap with primary worker for physics collision.
+      // Fire-and-forget: id=-1 is a sentinel never registered in this.pending,
+      // so the RESULT response from the worker is silently ignored.
+      this.worker.postMessage({
+        type: 'CALL',
+        id: -1,
+        method: 'storeHeightmap',
+        args: [chunkX, chunkZ, result.heightmap],
+      })
+      return result
     }
     return this.call(
       'generateChunk',
