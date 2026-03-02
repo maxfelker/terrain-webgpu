@@ -120,13 +120,16 @@ export default class ChunkManager {
   }
 
   filterByFrustum(planes: Plane[]): ChunkGPUData[] {
+    // maxTerrainHeight: heightmap values reach up to 10.0 (Mountains HeightMultiplier)
+    // multiplied by HEIGHT_SCALE=64 → 640 world units max.
+    const maxTerrainHeight = HEIGHT_SCALE * 10
     return this.activeChunks.filter((chunk) => {
       const cx = chunk.coord.x
       const cz = chunk.coord.z
       return testAABB(
         planes,
-        cx * CHUNK_SIZE,       -HEIGHT_SCALE, cz * CHUNK_SIZE,
-        (cx + 1) * CHUNK_SIZE,  HEIGHT_SCALE, (cz + 1) * CHUNK_SIZE,
+        cx * CHUNK_SIZE,       0,                cz * CHUNK_SIZE,
+        (cx + 1) * CHUNK_SIZE, maxTerrainHeight, (cz + 1) * CHUNK_SIZE,
       )
     })
   }
