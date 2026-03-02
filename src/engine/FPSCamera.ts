@@ -11,6 +11,7 @@ export interface PlayerState {
   sprinting: boolean
   coyoteFrames: number
   jumpProgress: number
+  flying: boolean
 }
 
 const EYE_HEIGHT = 0.8

@@ -6,6 +6,7 @@ export interface InputSnapshot {
   right: boolean
   jump: boolean
   sprint: boolean
+  flyToggle: boolean  // edge-triggered: true for one frame when F is pressed
   mouseDX: number
   mouseDY: number
 }
@@ -16,9 +17,13 @@ export default class InputSystem {
   private mouseDY = 0
   private sensitivity = 1.0
   private canvas: HTMLCanvasElement | null = null
+  private flyTogglePending = false
 
   private onKeyDown = (e: KeyboardEvent): void => {
     this.keys.add(e.code)
+    if (e.code === 'KeyF') {
+      this.flyTogglePending = true
+    }
   }
 
   private onKeyUp = (e: KeyboardEvent): void => {
@@ -49,17 +54,19 @@ export default class InputSystem {
   // Returns current snapshot and resets mouse deltas
   flush(): InputSnapshot {
     const snap: InputSnapshot = {
-      forward:  this.keys.has('KeyW')  || this.keys.has('ArrowUp'),
-      backward: this.keys.has('KeyS')  || this.keys.has('ArrowDown'),
-      left:     this.keys.has('KeyA')  || this.keys.has('ArrowLeft'),
-      right:    this.keys.has('KeyD')  || this.keys.has('ArrowRight'),
-      jump:     this.keys.has('Space'),
-      sprint:   this.keys.has('ShiftLeft'),
-      mouseDX:  this.mouseDX,
-      mouseDY:  this.mouseDY,
+      forward:    this.keys.has('KeyW')  || this.keys.has('ArrowUp'),
+      backward:   this.keys.has('KeyS')  || this.keys.has('ArrowDown'),
+      left:       this.keys.has('KeyA')  || this.keys.has('ArrowLeft'),
+      right:      this.keys.has('KeyD')  || this.keys.has('ArrowRight'),
+      jump:       this.keys.has('Space'),
+      sprint:     this.keys.has('ShiftLeft'),
+      flyToggle:  this.flyTogglePending,
+      mouseDX:    this.mouseDX,
+      mouseDY:    this.mouseDY,
     }
     this.mouseDX = 0
     this.mouseDY = 0
+    this.flyTogglePending = false
     return snap
   }
 
