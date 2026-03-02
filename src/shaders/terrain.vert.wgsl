@@ -3,6 +3,8 @@ struct Uniforms {
   worldOffset: vec4<f32>,
   cameraPos:   vec4<f32>,
   fogParams:   vec4<f32>,
+  _pad:        vec4<f32>,
+  biomeData:   vec4<f32>,
 }
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
 

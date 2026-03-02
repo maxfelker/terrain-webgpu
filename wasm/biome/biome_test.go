@@ -215,6 +215,30 @@ t.Errorf("vertical spike at (%d,%d): diff=%.4f > %.4f", row, col, diff, maxAllow
 }
 }
 
+func TestBiomeNoiseProvidesVariety(t *testing.T) {
+	seed := 42
+	biomesSeen := make(map[biome.BiomeType]bool)
+	var minTemp, maxTemp float64 = 1.0, 0.0
+	for x := -10000.0; x <= 10000; x += 500 {
+		for z := -10000.0; z <= 10000; z += 500 {
+			temp, _ := biome.GetBiomeParams(x, z, seed)
+			if temp < minTemp {
+				minTemp = temp
+			}
+			if temp > maxTemp {
+				maxTemp = temp
+			}
+			biomesSeen[biome.GetBiomeAt(x, z, seed)] = true
+		}
+	}
+	if maxTemp-minTemp < 0.4 {
+		t.Errorf("temperature range too narrow: [%.3f, %.3f] - biome noise is not varying enough", minTemp, maxTemp)
+	}
+	if len(biomesSeen) < 3 {
+		t.Errorf("only %d biome types seen in 20k×20k area - expected at least 3", len(biomesSeen))
+	}
+}
+
 func TestGaussianBiomeWeights_SumToOne(t *testing.T) {
 // Blending weights must sum to 1.0 at every climate point.
 testPoints := [][2]float64{

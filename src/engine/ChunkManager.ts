@@ -17,7 +17,7 @@ export interface ChunkGPUData {
 const RESOLUTION = 129
 export const CHUNK_SIZE = 512
 export const HEIGHT_SCALE = 64
-const UNIFORM_BUFFER_SIZE = 128  // 64 (viewProj mat4) + 16 (worldOffset) + 16 (cameraPos) + 16 (fogParams) + 16 padding
+const UNIFORM_BUFFER_SIZE = 144  // 64 (viewProj mat4) + 16 (worldOffset) + 16 (cameraPos) + 16 (fogParams) + 16 padding + 16 (biomeData)
 
 export default class ChunkManager {
   private device: GPUDevice
@@ -99,6 +99,9 @@ export default class ChunkManager {
 
     const worldOffset = new Float32Array([cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE, 0])
     this.device.queue.writeBuffer(uniformBuffer, 64, worldOffset)
+
+    const biomeData = new Float32Array([biomeId ?? 0, 0, 0, 0])
+    this.device.queue.writeBuffer(uniformBuffer, 128, biomeData)
 
     const bindGroup = this.device.createBindGroup({
       layout: this.bindGroupLayout,
