@@ -1,0 +1,48 @@
+name: Build and Deploy to Azure WebApp
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR login (ephemeral token via OIDC session)
+        run: az acr login --name maxfelkershared
+
+      - name: Build and push image to ACR
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            maxfelkershared.azurecr.io/terrain-gpu:${{ github.sha }}
+            maxfelkershared.azurecr.io/terrain-gpu:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Azure WebApp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: terrain-gpu-demo
+          resource-group-name: maxfelker.com
+          images: maxfelkershared.azurecr.io/terrain-gpu:${{ github.sha }}
