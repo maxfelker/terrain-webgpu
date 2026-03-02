@@ -24,9 +24,23 @@ fn getBiomeColor(id: f32) -> vec3f {
     return vec3f(0.34, 0.52, 0.18); // Grassland (default)
 }
 
+fn getHeightBlendedColor(biomeId: f32, worldY: f32) -> vec3f {
+    let baseColor = getBiomeColor(biomeId);
+    let rockColor = vec3f(0.52, 0.48, 0.44);
+    let snowColor = vec3f(0.92, 0.93, 0.95);
+
+    // Blend toward rock at mid-heights (>= 60 world units)
+    let rockBlend = clamp((worldY - 60.0) / 120.0, 0.0, 1.0);
+    let midColor = mix(baseColor, rockColor, rockBlend);
+
+    // Blend toward snow at very high elevations (>= 300 world units)
+    let snowBlend = clamp((worldY - 300.0) / 150.0, 0.0, 1.0);
+    return mix(midColor, snowColor, snowBlend);
+}
+
 @fragment
 fn fs_main(f: FragInput) -> @location(0) vec4<f32> {
-  let albedo = getBiomeColor(uniforms.biomeData.x);
+  let albedo = getHeightBlendedColor(uniforms.biomeData.x, f.worldPos.y);
 
   let lightDir = normalize(vec3<f32>(0.5, 1.2, 0.4));
   let diffuse  = max(dot(normalize(f.normal), lightDir), 0.0);
