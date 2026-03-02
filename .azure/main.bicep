@@ -67,13 +67,14 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
   }
 }
 
-resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(acr.id, webApp.id, acrPullRoleDefinitionId)
-  scope: acr
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleDefinitionId)
+module acrPullRoleAssignment 'acr-role.bicep' = {
+  name: 'acrPullRoleAssignment'
+  scope: resourceGroup(acrResourceGroup)
+  params: {
+    acrName: acrName
     principalId: webApp.identity.principalId
-    principalType: 'ServicePrincipal'
+    roleDefinitionId: acrPullRoleDefinitionId
+    webAppId: webApp.id
   }
 }
 
