@@ -2,9 +2,9 @@ package world
 
 // Constants mirror terra-major World.cs
 const (
-	InitialRenderRadius = 2048.0
-	RenderRadius        = 1536.0
-	DistanceThreshold   = 2560.0
+	InitialRenderRadius = 3072.0
+	RenderRadius        = 2560.0
+	DistanceThreshold   = 4608.0
 	MaxConcurrentChunks = 64
 )
 

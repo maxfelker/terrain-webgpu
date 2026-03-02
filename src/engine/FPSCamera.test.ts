@@ -8,6 +8,7 @@ const defaultPlayer: PlayerState = {
   velocityY: 0, grounded: true,
   sprinting: false,
   coyoteFrames: 0, jumpProgress: 0,
+  flying: false,
 }
 
 describe('FPSCamera', () => {
