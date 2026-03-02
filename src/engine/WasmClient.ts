@@ -1,5 +1,6 @@
 // Main-thread async wrapper around the terrain WASM worker.
 import type { PlayerState } from './FPSCamera'
+import ChunkWorkerPool from './worker/ChunkWorkerPool'
 
 export interface WorldUpdate {
   chunksToAdd: Array<{ coord: { X: number; Z: number } }> | null
@@ -10,6 +11,9 @@ export default class WasmClient {
   private worker: Worker
   private nextId = 0
   private pending = new Map<number, (data: unknown) => void>()
+  private pool: ChunkWorkerPool | null = null
+  private wasmBinaryUrl = ''
+  private wasmExecUrl = ''
   onTick: ((playerState: PlayerState) => void) | null = null
 
   constructor() {
@@ -48,6 +52,8 @@ export default class WasmClient {
         wasmBinaryUrl: `/terrain.wasm?v=${__WASM_HASH__}`,
         wasmExecUrl: '/wasm_exec.js',
       })
+      this.wasmBinaryUrl = `/terrain.wasm?v=${__WASM_HASH__}`
+      this.wasmExecUrl = '/wasm_exec.js'
     })
   }
 
@@ -61,6 +67,10 @@ export default class WasmClient {
 
   async initWorld(config: object): Promise<void> {
     await this.call('initWorld', [JSON.stringify(config)])
+    if (!this.pool && this.wasmBinaryUrl) {
+      this.pool = new ChunkWorkerPool(4)
+      await this.pool.init(this.wasmBinaryUrl, this.wasmExecUrl, JSON.stringify(config))
+    }
   }
 
   async loadWorldConfig(config: object): Promise<void> {
@@ -75,6 +85,9 @@ export default class WasmClient {
     chunkSize: number,
     heightScale: number,
   ): Promise<{ heightmap: Float32Array; normals: Float32Array; biomeId: number }> {
+    if (this.pool) {
+      return this.pool.generateChunk(JSON.stringify(config), chunkX, chunkZ, resolution, chunkSize, heightScale)
+    }
     return this.call(
       'generateChunk',
       [JSON.stringify(config), chunkX, chunkZ, resolution, chunkSize, heightScale],
@@ -86,6 +99,7 @@ export default class WasmClient {
   }
 
   terminate(): void {
+    this.pool?.terminate()
     this.worker.terminate()
   }
 

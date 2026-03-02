@@ -137,10 +137,22 @@ export default class GameEngine {
     if (this.playerState) {
       const dx = this.playerState.x - this.lastStreamX
       const dz = this.playerState.z - this.lastStreamZ
-      if (dx * dx + dz * dz > 128 * 128) {
+      const streamThreshold = this.playerState.flying ? 64 * 64 : 128 * 128
+      if (dx * dx + dz * dz > streamThreshold) {
         this.lastStreamX = this.playerState.x
         this.lastStreamZ = this.playerState.z
-        this.chunkManager?.streamUpdate(this.playerState.x, this.playerState.z)
+
+        let streamX = this.playerState.x
+        let streamZ = this.playerState.z
+
+        if (this.playerState.flying) {
+          // Pre-generate chunks in the look direction (2 chunks lookahead = 1024 units)
+          const lookahead = 1024
+          streamX += -Math.sin(this.playerState.yaw) * lookahead
+          streamZ += -Math.cos(this.playerState.yaw) * lookahead
+        }
+
+        this.chunkManager?.streamUpdate(streamX, streamZ)
           .catch(console.error)
       }
     }
