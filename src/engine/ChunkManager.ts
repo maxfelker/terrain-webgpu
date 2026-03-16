@@ -1,4 +1,4 @@
-import WasmClient from './WasmClient'
+import WasmClient, { type BiomeTransitionMeta } from './WasmClient'
 import type { ChunkCoord } from './worker/WasmBridge'
 import MeshBuilder from './MeshBuilder'
 import { testAABB } from './Frustum'
@@ -11,7 +11,7 @@ export interface ChunkGPUData {
   uniformBuffer: GPUBuffer
   bindGroup: GPUBindGroup
   indexCount: number
-  biomeId: number
+  biomeTransition: BiomeTransitionMeta
 }
 
 const RESOLUTION = 129
@@ -64,14 +64,40 @@ export default class ChunkManager {
     const idx = this.activeChunks.findIndex(c => c.coord.x === cx && c.coord.z === cz)
     if (idx === -1) return
     const chunk = this.activeChunks[idx]
-    chunk.vertexBuffer.destroy()
-    chunk.indexBuffer.destroy()
-    chunk.uniformBuffer.destroy()
+    this.destroyChunkResources(chunk)
     this.activeChunks.splice(idx, 1)
   }
 
+  private destroyChunkResources(chunk: ChunkGPUData): void {
+    chunk.vertexBuffer.destroy()
+    chunk.indexBuffer.destroy()
+    chunk.uniformBuffer.destroy()
+  }
+
+  async reloadChunks(playerX: number, playerZ: number): Promise<void> {
+    const coordsToRegenerate = this.activeChunks.map(chunk => ({
+      x: chunk.coord.x,
+      z: chunk.coord.z,
+    }))
+
+    for (const chunk of this.activeChunks) {
+      this.destroyChunkResources(chunk)
+    }
+    this.activeChunks = []
+
+    if (coordsToRegenerate.length === 0) {
+      await this.streamUpdate(playerX, playerZ)
+      return
+    }
+
+    const regeneratedChunks = await Promise.all(
+      coordsToRegenerate.map(coord => this.generateChunk(coord.x, coord.z))
+    )
+    this.activeChunks = regeneratedChunks
+  }
+
   async generateChunk(cx: number, cz: number): Promise<ChunkGPUData> {
-    const { heightmap, normals, biomeId } = await this.wasmClient.generateChunk(
+    const { heightmap, normals, biomeTransition } = await this.wasmClient.generateChunk(
       {}, cx, cz, RESOLUTION, CHUNK_SIZE, HEIGHT_SCALE,
     )
 
@@ -100,7 +126,18 @@ export default class ChunkManager {
     const worldOffset = new Float32Array([cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE, 0])
     this.device.queue.writeBuffer(uniformBuffer, 64, worldOffset)
 
-    const biomeData = new Float32Array([biomeId ?? 0, 0, 0, 0])
+    const resolvedBiomeTransition: BiomeTransitionMeta = {
+      primaryBiomeId: biomeTransition?.primaryBiomeId ?? 0,
+      secondaryBiomeId: biomeTransition?.secondaryBiomeId ?? (biomeTransition?.primaryBiomeId ?? 0),
+      blendFactor: Math.min(1, Math.max(0, biomeTransition?.blendFactor ?? 0)),
+    }
+
+    const biomeData = new Float32Array([
+      resolvedBiomeTransition.primaryBiomeId,
+      resolvedBiomeTransition.secondaryBiomeId,
+      resolvedBiomeTransition.blendFactor,
+      0,
+    ])
     this.device.queue.writeBuffer(uniformBuffer, 128, biomeData)
 
     const bindGroup = this.device.createBindGroup({
@@ -115,7 +152,7 @@ export default class ChunkManager {
       uniformBuffer,
       bindGroup,
       indexCount,
-      biomeId: biomeId ?? 0,
+      biomeTransition: resolvedBiomeTransition,
     }
   }
 

@@ -33,6 +33,7 @@ function makeFakeWasmClient(worldUpdateImpl: () => Promise<WorldUpdate>) {
     generateChunk: vi.fn().mockResolvedValue({
       heightmap: new Float32Array(129 * 129),
       normals: new Float32Array(129 * 129 * 3),
+      biomeTransition: { primaryBiomeId: 0, secondaryBiomeId: 0, blendFactor: 0 },
     }),
   } as unknown as WasmClient
 }
@@ -163,5 +164,83 @@ describe('ChunkManager.init', () => {
     })
     expect(wasmClient.worldUpdate).toHaveBeenCalledWith(256, 256)
     expect(manager.getActiveChunks().length).toBeGreaterThan(0)
+  })
+})
+
+describe('ChunkManager.reloadChunks', () => {
+  it('regenerates active chunks and destroys old GPU buffers', async () => {
+    const update: WorldUpdate = {
+      chunksToAdd: [{ coord: { X: 2, Z: 3 } }],
+      chunksToRemove: [],
+    }
+    const wasmClient = makeFakeWasmClient(() => Promise.resolve(update))
+    const device = makeFakeDevice()
+    const manager = new ChunkManager(device, wasmClient, makeFakeBindGroupLayout())
+
+    await manager.streamUpdate(256, 256)
+    const oldChunk = manager.getActiveChunks()[0]!
+
+    await manager.reloadChunks(256, 256)
+
+    const reloadedChunk = manager.getActiveChunks()[0]!
+    expect(reloadedChunk.coord).toEqual({ x: 2, z: 3 })
+    expect(reloadedChunk.vertexBuffer).not.toBe(oldChunk.vertexBuffer)
+    expect(reloadedChunk.indexBuffer).not.toBe(oldChunk.indexBuffer)
+    expect(reloadedChunk.uniformBuffer).not.toBe(oldChunk.uniformBuffer)
+    expect(oldChunk.vertexBuffer.destroy).toHaveBeenCalled()
+    expect(oldChunk.indexBuffer.destroy).toHaveBeenCalled()
+    expect(oldChunk.uniformBuffer.destroy).toHaveBeenCalled()
+    expect(wasmClient.generateChunk).toHaveBeenCalledTimes(2)
+  })
+
+  it('falls back to streamUpdate when no chunks are active', async () => {
+    const update: WorldUpdate = {
+      chunksToAdd: [{ coord: { X: 4, Z: 5 } }],
+      chunksToRemove: [],
+    }
+    const wasmClient = makeFakeWasmClient(() => Promise.resolve(update))
+    const device = makeFakeDevice()
+    const manager = new ChunkManager(device, wasmClient, makeFakeBindGroupLayout())
+
+    await manager.reloadChunks(1024, 2048)
+
+    expect(wasmClient.worldUpdate).toHaveBeenCalledWith(1024, 2048)
+    expect(wasmClient.generateChunk).toHaveBeenCalledTimes(1)
+    expect(manager.getActiveChunks()).toHaveLength(1)
+    expect(manager.getActiveChunks()[0].coord).toEqual({ x: 4, z: 5 })
+  })
+})
+
+describe('ChunkManager.generateChunk', () => {
+  it('writes biome transition metadata into biomeData uniform vec4', async () => {
+    const wasmClient = {
+      initWorld: vi.fn().mockResolvedValue(undefined),
+      worldUpdate: vi.fn().mockResolvedValue({ chunksToAdd: [], chunksToRemove: [] }),
+      generateChunk: vi.fn().mockResolvedValue({
+        heightmap: new Float32Array(129 * 129),
+        normals: new Float32Array(129 * 129 * 3),
+        biomeTransition: { primaryBiomeId: 2, secondaryBiomeId: 5, blendFactor: 0.35 },
+      }),
+    } as unknown as WasmClient
+
+    const device = makeFakeDevice()
+    const manager = new ChunkManager(device, wasmClient, makeFakeBindGroupLayout())
+
+    const chunk = await manager.generateChunk(7, 8)
+
+    const writeCalls = vi.mocked(device.queue.writeBuffer).mock.calls
+    const biomeCall = writeCalls.find(([, offset]) => offset === 128)
+    expect(biomeCall).toBeDefined()
+    const biomeData = biomeCall?.[2] as Float32Array
+    expect(biomeData[0]).toBe(2)
+    expect(biomeData[1]).toBe(5)
+    expect(biomeData[2]).toBeCloseTo(0.35)
+    expect(biomeData[3]).toBe(0)
+
+    expect(chunk.biomeTransition).toEqual({
+      primaryBiomeId: 2,
+      secondaryBiomeId: 5,
+      blendFactor: 0.35,
+    })
   })
 })

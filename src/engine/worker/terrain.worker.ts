@@ -47,7 +47,8 @@ function handleCall(event: MessageEvent): void {
       // go_generateChunk runs both heightmap generation and normal computation
       // entirely inside Go using pure Go slices — no JS Float32Array is ever
       // passed between two Go WASM functions (which silently produces length 0).
-      // Returns flat Float32Array: [heightmap(res×res)..., normals(res×res×3)..., biomeId(1)]
+      // Returns flat Float32Array:
+      // [heightmap(res×res)..., normals(res×res×3)..., primaryBiomeId, secondaryBiomeId, blendFactor]
       const combined = go_generateChunk(configJSON, cx, cz, resolution, chunkSize, heightScale)
       if (!combined || !combined.buffer) throw new Error('go_generateChunk returned no data')
 
@@ -55,9 +56,19 @@ function handleCall(event: MessageEvent): void {
       const normLen = resolution * resolution * 3
       const heightmap = combined.slice(0, hmLen)         // copy, own buffer
       const normals   = combined.slice(hmLen, hmLen + normLen)  // copy, own buffer
-      const biomeId   = Math.round(combined[hmLen + normLen])
+      const metadataStart = hmLen + normLen
+      const primaryBiomeId = Math.round(combined[metadataStart] ?? 0)
+      const secondaryBiomeId = Math.round(combined[metadataStart + 1] ?? primaryBiomeId)
+      const rawBlendFactor = combined[metadataStart + 2] ?? 0
+      const blendFactor = Number.isFinite(rawBlendFactor)
+        ? Math.min(1, Math.max(0, rawBlendFactor))
+        : 0
 
-      result = { heightmap, normals, biomeId }
+      result = {
+        heightmap,
+        normals,
+        biomeTransition: { primaryBiomeId, secondaryBiomeId, blendFactor },
+      }
       transfer = [heightmap.buffer as ArrayBuffer, normals.buffer as ArrayBuffer]
     } else if (method === 'worldUpdate') {
       const [playerX, playerZ] = args as [number, number]

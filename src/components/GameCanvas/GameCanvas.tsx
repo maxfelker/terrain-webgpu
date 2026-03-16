@@ -4,6 +4,7 @@ import styles from './GameCanvas.module.css'
 import HUD from '../HUD/HUD'
 import SettingsPanel from '../Settings/Settings'
 import type { PlayerState } from '../../engine/FPSCamera'
+import type { WorldConfig } from '../../engine/biome/BiomeTypes'
 
 interface GameCanvasProps {
   ref: RefObject<HTMLCanvasElement | null>
@@ -13,9 +14,10 @@ interface GameCanvasProps {
   onFogDensityChange?: (v: number) => void
   onFovChange?: (v: number) => void
   onMouseSensitivityChange?: (v: number) => void
+  onWorldConfigApply?: (config: WorldConfig) => void
 }
 
-export default function GameCanvas({ ref, onPointerLock, playerState = null, fps = 0, onFogDensityChange, onFovChange, onMouseSensitivityChange }: GameCanvasProps) {
+export default function GameCanvas({ ref, onPointerLock, playerState = null, fps = 0, onFogDensityChange, onFovChange, onMouseSensitivityChange, onWorldConfigApply }: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -56,6 +58,7 @@ export default function GameCanvas({ ref, onPointerLock, playerState = null, fps
         onFogDensityChange={onFogDensityChange}
         onFovChange={onFovChange}
         onMouseSensitivityChange={onMouseSensitivityChange}
+        onWorldConfigApply={onWorldConfigApply}
       />
     </div>
   )

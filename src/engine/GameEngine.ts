@@ -9,6 +9,7 @@ import FPSCamera from './FPSCamera'
 import type { PlayerState } from './FPSCamera'
 import mat4 from './math/mat4'
 import { load } from './Settings'
+import type { WorldConfig } from './biome/BiomeTypes'
 
 const FALLBACK_EYE: [number, number, number] = [768, 320, 768]
 const FALLBACK_CENTER: [number, number, number] = [256, 0, 256]
@@ -100,6 +101,15 @@ export default class GameEngine {
   setMouseSensitivity(s: number): void {
     // Normalize relative to physics default of 0.002
     this.inputSystem?.setSensitivity(s / 0.002)
+  }
+
+  async applyWorldConfig(config: WorldConfig): Promise<void> {
+    if (!this.wasmClient || !this.chunkManager) return
+
+    await this.wasmClient.loadWorldConfig(config)
+    const playerX = this.playerState?.x ?? 256
+    const playerZ = this.playerState?.z ?? 256
+    await this.chunkManager.reloadChunks(playerX, playerZ)
   }
 
   stop(): void {
