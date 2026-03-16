@@ -43,6 +43,8 @@ declare global {
   ): Float32Array
   /** Load a WorldConfig JSON to configure biome placement before chunk generation. */
   function go_loadWorldConfig(configJSON: string): void
+  /** Store a heightmap (from a pool worker) into the primary worker's globalHeightmaps for physics. */
+  function go_storeHeightmap(cx: number, cz: number, heightmap: Float32Array): void
 }
 
 export default class WasmBridge {

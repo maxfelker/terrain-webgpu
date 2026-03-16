@@ -1,5 +1,6 @@
 // Main-thread async wrapper around the terrain WASM worker.
 import type { PlayerState } from './FPSCamera'
+import ChunkWorkerPool from './worker/ChunkWorkerPool'
 
 export interface WorldUpdate {
   chunksToAdd: Array<{ coord: { X: number; Z: number } }> | null
@@ -22,6 +23,9 @@ export default class WasmClient {
   private worker: Worker
   private nextId = 0
   private pending = new Map<number, (data: unknown) => void>()
+  private pool: ChunkWorkerPool | null = null
+  private wasmBinaryUrl = ''
+  private wasmExecUrl = ''
   onTick: ((playerState: PlayerState) => void) | null = null
 
   constructor() {
@@ -60,6 +64,8 @@ export default class WasmClient {
         wasmBinaryUrl: `/terrain.wasm?v=${__WASM_HASH__}`,
         wasmExecUrl: '/wasm_exec.js',
       })
+      this.wasmBinaryUrl = `/terrain.wasm?v=${__WASM_HASH__}`
+      this.wasmExecUrl = '/wasm_exec.js'
     })
   }
 
@@ -73,6 +79,10 @@ export default class WasmClient {
 
   async initWorld(config: object): Promise<void> {
     await this.call('initWorld', [JSON.stringify(config)])
+    if (!this.pool && this.wasmBinaryUrl) {
+      this.pool = new ChunkWorkerPool(4)
+      await this.pool.init(this.wasmBinaryUrl, this.wasmExecUrl, JSON.stringify(config))
+    }
   }
 
   async loadWorldConfig(config: object): Promise<void> {
@@ -87,6 +97,21 @@ export default class WasmClient {
     chunkSize: number,
     heightScale: number,
   ): Promise<ChunkGenerationResult> {
+    if (this.pool) {
+      const result = await this.pool.generateChunk(
+        JSON.stringify(config), chunkX, chunkZ, resolution, chunkSize, heightScale,
+      )
+      // Register heightmap with primary worker for physics collision.
+      // Fire-and-forget: id=-1 is a sentinel never registered in this.pending,
+      // so the RESULT response from the worker is silently ignored.
+      this.worker.postMessage({
+        type: 'CALL',
+        id: -1,
+        method: 'storeHeightmap',
+        args: [chunkX, chunkZ, result.heightmap],
+      })
+      return result
+    }
     return this.call(
       'generateChunk',
       [JSON.stringify(config), chunkX, chunkZ, resolution, chunkSize, heightScale],
@@ -98,6 +123,7 @@ export default class WasmClient {
   }
 
   terminate(): void {
+    this.pool?.terminate()
     this.worker.terminate()
   }
 

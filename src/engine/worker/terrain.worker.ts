@@ -74,6 +74,10 @@ function handleCall(event: MessageEvent): void {
       const [playerX, playerZ] = args as [number, number]
       const json = go_worldUpdate(playerX, playerZ) as string
       result = JSON.parse(json)
+    } else if (method === 'storeHeightmap') {
+      const [cx, cz, heightmap] = args as [number, number, Float32Array]
+      go_storeHeightmap(cx, cz, heightmap)
+      result = null
     } else {
       throw new Error(`Unknown method: ${method}`)
     }
