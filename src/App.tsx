@@ -44,6 +44,11 @@ export default function App() {
         onFogDensityChange={(v: number) => engineRef.current?.setFogDensity(v)}
         onFovChange={(v: number) => engineRef.current?.setFov(v)}
         onMouseSensitivityChange={(v: number) => engineRef.current?.setMouseSensitivity(v)}
+        onWorldConfigApply={(config) => {
+          const engine = engineRef.current
+          if (!engine) return
+          engine.applyWorldConfig(config).catch(console.error)
+        }}
       />
       <div className={styles.status}>        {isReady ? '✓ WebGPU Ready' : 'Initializing WebGPU...'}
         {pointerLocked && ' | Click to unlock'}

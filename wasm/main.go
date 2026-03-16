@@ -46,9 +46,15 @@ func goLoadWorldConfig(_ js.Value, args []js.Value) any {
 	if len(args) == 0 {
 		return js.Null()
 	}
-	if err := json.Unmarshal([]byte(args[0].String()), &globalWorldCfg); err != nil {
+	defaultCfg := biome.DefaultWorldConfig()
+	cfg := defaultCfg
+	if err := json.Unmarshal([]byte(args[0].String()), &cfg); err != nil {
 		return jsError(err)
 	}
+	if cfg.BiomeScale <= 0 || math.IsNaN(cfg.BiomeScale) || math.IsInf(cfg.BiomeScale, 0) {
+		cfg.BiomeScale = defaultCfg.BiomeScale
+	}
+	globalWorldCfg = cfg
 	return js.Null()
 }
 
@@ -124,8 +130,8 @@ func goGetChunkHeight(_ js.Value, args []js.Value) any {
 // produce empty arrays due to syscall/js value lifecycle behaviour.
 //
 // Args: configJSON string, chunkX int, chunkZ int, resolution int, chunkSize int, heightScale float64
-// Returns: flat Float32Array [heightmap(res×res)..., normals(res×res×3)..., biomeId(1)]
-// TypeScript splits via: hm = buf.subarray(0, res*res), normals = buf.subarray(res*res, res*res + res*res*3), biomeId = buf[res*res + res*res*3]
+// Returns: flat Float32Array [heightmap(res×res)..., normals(res×res×3)..., primaryBiomeId(1), secondaryBiomeId(1), blendFactor(1)]
+// TypeScript splits via hm/normals by fixed lengths then decodes final 3 metadata values.
 func goGenerateChunk(_ js.Value, args []js.Value) any {
 	cfg := terrain.DefaultConfig()
 	cfgStr := args[0].String()
@@ -153,8 +159,9 @@ func goGenerateChunk(_ js.Value, args []js.Value) any {
 	// Per-vertex biome sampling ensures seamless chunk boundaries.
 	// Both sides of a shared edge compute height at the same world coordinate
 	// → same biome → same noise config → matching heights, no gaps.
-	hm, biomeType := biome.GenerateHeightmapPerVertex(cx, cz, cfg, biomeSeed)
-	extHm := biome.GenerateExtendedHeightmapPerVertex(cx, cz, cfg, biomeSeed)
+	biomeScale := globalWorldCfg.BiomeScale
+	hm, biomeTransition := biome.GenerateHeightmapPerVertexWithScale(cx, cz, cfg, biomeSeed, biomeScale)
+	extHm := biome.GenerateExtendedHeightmapPerVertexWithScale(cx, cz, cfg, biomeSeed, biomeScale)
 
 	// Normals are computed from the extended heightmap. The effective height scale
 	// varies per vertex (biome height multiplier × base heightScale), but we pass
@@ -169,11 +176,14 @@ func goGenerateChunk(_ js.Value, args []js.Value) any {
 		globalWorld.SetHeight(int(heightScale))
 	}
 
-	// Return as a single flat Float32Array: [heightmap..., normals..., biomeId]
-	combined := make([]float32, len(hm)+len(normals)+1)
+	// Return as a single flat Float32Array: [heightmap..., normals..., primaryBiomeId, secondaryBiomeId, blendFactor]
+	combined := make([]float32, len(hm)+len(normals)+3)
 	copy(combined, hm)
 	copy(combined[len(hm):], normals)
-	combined[len(hm)+len(normals)] = float32(biomeType)
+	metadataOffset := len(hm) + len(normals)
+	combined[metadataOffset] = float32(biomeTransition.PrimaryBiomeID)
+	combined[metadataOffset+1] = float32(biomeTransition.SecondaryBiomeID)
+	combined[metadataOffset+2] = biomeTransition.BlendFactor
 	return float32SliceToJS(combined)
 }
 
@@ -231,6 +241,3 @@ func goUpdatePlayer(_ js.Value, args []js.Value) any {
 	}
 	return string(out)
 }
-
-// ensure math import is used
-var _ = math.Floor

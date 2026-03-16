@@ -1,22 +1,27 @@
 import { useState } from 'react'
 import { save, load, DEFAULTS } from '../../engine/Settings'
+import { DEFAULT_WORLD_CONFIG, type WorldConfig } from '../../engine/biome/BiomeTypes'
 import styles from './Settings.module.css'
 
 interface SettingsPanelProps {
   onFogDensityChange?: (v: number) => void
   onFovChange?: (v: number) => void
   onMouseSensitivityChange?: (v: number) => void
+  onWorldConfigApply?: (config: WorldConfig) => void
 }
 
 export default function SettingsPanel({
   onFogDensityChange,
   onFovChange,
   onMouseSensitivityChange,
+  onWorldConfigApply,
 }: SettingsPanelProps) {
   const [open, setOpen] = useState(false)
   const [fogDensity, setFogDensity] = useState(() => load('fogDensity'))
   const [fov, setFov] = useState(() => load('fov'))
   const [sensitivity, setSensitivity] = useState(() => load('mouseSensitivity'))
+  const [worldSeed, setWorldSeed] = useState(DEFAULT_WORLD_CONFIG.seed)
+  const [biomeScale, setBiomeScale] = useState(DEFAULT_WORLD_CONFIG.biomeScale)
 
   function handleFogDensity(v: number) {
     setFogDensity(v)
@@ -40,6 +45,20 @@ export default function SettingsPanel({
     handleFogDensity(DEFAULTS.fogDensity)
     handleFov(DEFAULTS.fov)
     handleSensitivity(DEFAULTS.mouseSensitivity)
+  }
+
+  function handleWorldSeed(v: string) {
+    const parsed = Number.parseInt(v, 10)
+    if (!Number.isNaN(parsed)) setWorldSeed(parsed)
+  }
+
+  function handleBiomeScale(v: string) {
+    const parsed = Number.parseFloat(v)
+    if (!Number.isNaN(parsed) && parsed > 0) setBiomeScale(parsed)
+  }
+
+  function handleApplyWorldConfig() {
+    onWorldConfigApply?.({ seed: worldSeed, biomeScale })
   }
 
   return (
@@ -100,6 +119,36 @@ export default function SettingsPanel({
             />
             <span className={styles.value}>{sensitivity.toFixed(4)}</span>
           </label>
+
+          <div className={styles.section}>
+            <h5 className={styles.sectionTitle}>World Config</h5>
+            <label className={styles.label}>
+              Seed
+              <input
+                type="number"
+                step={1}
+                value={worldSeed}
+                onChange={e => handleWorldSeed(e.target.value)}
+                className={styles.numberInput}
+                data-testid="input-world-seed"
+              />
+            </label>
+
+            <label className={styles.label}>
+              Biome Scale
+              <input
+                type="number"
+                min={0.1}
+                step={0.1}
+                value={biomeScale}
+                onChange={e => handleBiomeScale(e.target.value)}
+                className={styles.numberInput}
+                data-testid="input-biome-scale"
+              />
+            </label>
+
+            <button className={styles.apply} onClick={handleApplyWorldConfig}>Apply World Config</button>
+          </div>
 
           <button className={styles.reset} onClick={handleReset}>Reset</button>
         </div>

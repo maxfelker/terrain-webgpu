@@ -30,8 +30,9 @@ declare global {
     chunkSize: number,
     heightScale: number,
   ): Float32Array
-  /** Combined heightmap+normals+biomeId generation in pure Go.
-   *  Returns flat Float32Array: [hm(res*res)..., normals(res*res*3)..., biomeId(1)] */
+  /** Combined heightmap+normals+biome transition generation in pure Go.
+   *  Returns flat Float32Array:
+   *  [hm(res*res)..., normals(res*res*3)..., primaryBiomeId(1), secondaryBiomeId(1), blendFactor(1)] */
   function go_generateChunk(
     configJSON: string,
     chunkX: number,

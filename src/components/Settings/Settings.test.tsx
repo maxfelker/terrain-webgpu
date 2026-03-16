@@ -67,6 +67,16 @@ describe('SettingsPanel', () => {
     expect(onSens).toHaveBeenCalledWith(0.003)
   })
 
+  it('calls onWorldConfigApply when world config is applied', () => {
+    const onApply = vi.fn()
+    render(<SettingsPanel onWorldConfigApply={onApply} />)
+    fireEvent.click(screen.getByRole('button', { name: /settings/i }))
+    fireEvent.change(screen.getByTestId('input-world-seed'), { target: { value: '1234' } })
+    fireEvent.change(screen.getByTestId('input-biome-scale'), { target: { value: '2.5' } })
+    fireEvent.click(screen.getByRole('button', { name: /apply world config/i }))
+    expect(onApply).toHaveBeenCalledWith({ seed: 1234, biomeScale: 2.5 })
+  })
+
   it('saves value to localStorage on slider change', () => {
     render(<SettingsPanel />)
     fireEvent.click(screen.getByRole('button', { name: /settings/i }))

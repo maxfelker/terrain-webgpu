@@ -2,6 +2,7 @@ package biome
 
 import (
 	"math"
+	"sort"
 
 	"github.com/maxfelker/terrain-webgpu/wasm/noise"
 	"github.com/maxfelker/terrain-webgpu/wasm/terrain"
@@ -25,6 +26,13 @@ var climates = [6]biomeClimate{
 	Forest:    {0.51, 0.66, 0.20},
 }
 
+// ChunkBiomeTransition stores chunk-level biome blend metadata for rendering.
+type ChunkBiomeTransition struct {
+	PrimaryBiomeID   BiomeType
+	SecondaryBiomeID BiomeType
+	BlendFactor      float32
+}
+
 // gaussianBiomeWeights returns a normalised [6]float64 of per-biome blend weights
 // computed from Gaussian distance to each biome's climate center.
 // At any temp/humidity point, adjacent biomes receive non-zero weights so heights
@@ -43,7 +51,7 @@ func gaussianBiomeWeights(temperature, humidity float64) [6]float64 {
 			w[i] /= total
 		}
 	}
-	return w
+	return applyAdjacencyBuffering(w)
 }
 
 // sampleBiomeHeight computes the raw terrain height at (wx, wz) using the
@@ -72,13 +80,58 @@ func blendedHeight(wx, wz float64, terrainSeed int, weights [6]float64) float32 
 
 // dominantBiomeFromWeights returns the BiomeType with the highest weight.
 func dominantBiomeFromWeights(weights [6]float64) BiomeType {
-	best := 0
-	for i := 1; i < 6; i++ {
-		if weights[i] > weights[best] {
-			best = i
-		}
+	primary, _ := topTwoBiomesFromWeights(weights)
+	return primary
+}
+
+func topTwoBiomesFromWeights(weights [6]float64) (BiomeType, BiomeType) {
+	order := [6]BiomeType{}
+	for i := range order {
+		order[i] = BiomeType(i)
 	}
-	return BiomeType(best)
+
+	sort.SliceStable(order[:], func(i, j int) bool {
+		left := order[i]
+		right := order[j]
+		leftWeight := weights[left]
+		rightWeight := weights[right]
+		if leftWeight == rightWeight {
+			return left < right
+		}
+		return leftWeight > rightWeight
+	})
+
+	return order[0], order[1]
+}
+
+// ChunkBiomeTransitionFromWeights deterministically selects the top-2 biomes
+// from chunk-accumulated weights and computes a normalized blend factor.
+func ChunkBiomeTransitionFromWeights(weights [6]float64) ChunkBiomeTransition {
+	primary, secondary := topTwoBiomesFromWeights(weights)
+	primaryWeight := weights[primary]
+	secondaryWeight := weights[secondary]
+
+	if secondaryWeight <= 0 {
+		secondary = primary
+	}
+
+	var blend float32
+	sum := primaryWeight + secondaryWeight
+	if sum > 0 && secondary != primary {
+		blend = float32(secondaryWeight / sum)
+	}
+	if math.IsNaN(float64(blend)) || blend < 0 {
+		blend = 0
+	}
+	if blend > 1 {
+		blend = 1
+	}
+
+	return ChunkBiomeTransition{
+		PrimaryBiomeID:   primary,
+		SecondaryBiomeID: secondary,
+		BlendFactor:      blend,
+	}
 }
 
 // GenerateHeightmapPerVertex generates a heightmap where every vertex uses
@@ -86,7 +139,13 @@ func dominantBiomeFromWeights(weights [6]float64) BiomeType {
 // This ensures:
 //   - Seamless chunk boundaries (same world coord → same result on both sides)
 //   - Smooth terrain transitions (no hard walls at biome boundaries)
-func GenerateHeightmapPerVertex(chunkX, chunkZ int, cfg terrain.ChunkConfig, worldSeed int) (hm []float32, dominant BiomeType) {
+func GenerateHeightmapPerVertex(chunkX, chunkZ int, cfg terrain.ChunkConfig, worldSeed int) (hm []float32, transition ChunkBiomeTransition) {
+	return GenerateHeightmapPerVertexWithScale(chunkX, chunkZ, cfg, worldSeed, 1.0)
+}
+
+// GenerateHeightmapPerVertexWithScale applies biomeScale while generating a
+// per-vertex blended heightmap and chunk-level transition metadata.
+func GenerateHeightmapPerVertexWithScale(chunkX, chunkZ int, cfg terrain.ChunkConfig, worldSeed int, biomeScale float64) (hm []float32, transition ChunkBiomeTransition) {
 	res := cfg.HeightmapResolution
 	out := make([]float32, res*res)
 	worldOriginX := float64(chunkX * cfg.Dimension)
@@ -100,7 +159,7 @@ func GenerateHeightmapPerVertex(chunkX, chunkZ int, cfg terrain.ChunkConfig, wor
 			wx := worldOriginX + float64(col)*spacing
 			wz := worldOriginZ + float64(row)*spacing
 
-			temperature, humidity := GetBiomeParams(wx, wz, worldSeed)
+			temperature, humidity := GetBiomeParamsWithScale(wx, wz, worldSeed, biomeScale)
 			weights := gaussianBiomeWeights(temperature, humidity)
 
 			out[row*res+col] = blendedHeight(wx, wz, cfg.Seed, weights)
@@ -111,15 +170,20 @@ func GenerateHeightmapPerVertex(chunkX, chunkZ int, cfg terrain.ChunkConfig, wor
 		}
 	}
 
-	// Dominant biome is whichever accumulated the most weight across all vertices.
-	dominant = dominantBiomeFromWeights(weightSums)
-	return out, dominant
+	transition = ChunkBiomeTransitionFromWeights(weightSums)
+	return out, transition
 }
 
 // GenerateExtendedHeightmapPerVertex generates a (resolution+2)×(resolution+2)
 // extended heightmap with Gaussian-blended per-vertex heights for seamless
 // cross-boundary normal computation.
 func GenerateExtendedHeightmapPerVertex(chunkX, chunkZ int, cfg terrain.ChunkConfig, worldSeed int) []float32 {
+	return GenerateExtendedHeightmapPerVertexWithScale(chunkX, chunkZ, cfg, worldSeed, 1.0)
+}
+
+// GenerateExtendedHeightmapPerVertexWithScale applies biomeScale while
+// generating the extended heightmap used for normal computation.
+func GenerateExtendedHeightmapPerVertexWithScale(chunkX, chunkZ int, cfg terrain.ChunkConfig, worldSeed int, biomeScale float64) []float32 {
 	res := cfg.HeightmapResolution
 	extRes := res + 2
 	out := make([]float32, extRes*extRes)
@@ -133,7 +197,7 @@ func GenerateExtendedHeightmapPerVertex(chunkX, chunkZ int, cfg terrain.ChunkCon
 			wx := worldOriginX + float64(col-1)*spacing
 			wz := worldOriginZ + float64(row-1)*spacing
 
-			temperature, humidity := GetBiomeParams(wx, wz, worldSeed)
+			temperature, humidity := GetBiomeParamsWithScale(wx, wz, worldSeed, biomeScale)
 			weights := gaussianBiomeWeights(temperature, humidity)
 
 			out[row*extRes+col] = blendedHeight(wx, wz, cfg.Seed, weights)
@@ -141,4 +205,3 @@ func GenerateExtendedHeightmapPerVertex(chunkX, chunkZ int, cfg terrain.ChunkCon
 	}
 	return out
 }
-

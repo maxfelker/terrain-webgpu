@@ -6,6 +6,18 @@ export interface WorldUpdate {
   chunksToRemove: Array<{ X: number; Z: number }> | null
 }
 
+export interface BiomeTransitionMeta {
+  primaryBiomeId: number
+  secondaryBiomeId: number
+  blendFactor: number
+}
+
+export interface ChunkGenerationResult {
+  heightmap: Float32Array
+  normals: Float32Array
+  biomeTransition: BiomeTransitionMeta
+}
+
 export default class WasmClient {
   private worker: Worker
   private nextId = 0
@@ -74,11 +86,11 @@ export default class WasmClient {
     resolution: number,
     chunkSize: number,
     heightScale: number,
-  ): Promise<{ heightmap: Float32Array; normals: Float32Array; biomeId: number }> {
+  ): Promise<ChunkGenerationResult> {
     return this.call(
       'generateChunk',
       [JSON.stringify(config), chunkX, chunkZ, resolution, chunkSize, heightScale],
-    ) as Promise<{ heightmap: Float32Array; normals: Float32Array; biomeId: number }>
+    ) as Promise<ChunkGenerationResult>
   }
 
   async worldUpdate(playerX: number, playerZ: number): Promise<WorldUpdate> {

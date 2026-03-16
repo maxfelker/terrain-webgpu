@@ -38,9 +38,20 @@ fn getHeightBlendedColor(biomeId: f32, worldY: f32) -> vec3f {
     return mix(midColor, snowColor, snowBlend);
 }
 
+fn getTransitionBlendedColor(primaryBiomeId: f32, secondaryBiomeId: f32, blendFactor: f32, worldY: f32) -> vec3f {
+    let primaryColor = getHeightBlendedColor(primaryBiomeId, worldY);
+    let secondaryColor = getHeightBlendedColor(secondaryBiomeId, worldY);
+    return mix(primaryColor, secondaryColor, clamp(blendFactor, 0.0, 1.0));
+}
+
 @fragment
 fn fs_main(f: FragInput) -> @location(0) vec4<f32> {
-  let albedo = getHeightBlendedColor(uniforms.biomeData.x, f.worldPos.y);
+  let albedo = getTransitionBlendedColor(
+    uniforms.biomeData.x,
+    uniforms.biomeData.y,
+    uniforms.biomeData.z,
+    f.worldPos.y,
+  );
 
   let lightDir = normalize(vec3<f32>(0.5, 1.2, 0.4));
   let diffuse  = max(dot(normalize(f.normal), lightDir), 0.0);
